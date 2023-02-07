@@ -22,7 +22,144 @@ library(ggplot2)
 library(psych)
 library(TAM)
 library(knitr)
+library(patchwork)
 
+
+```
+
+# Descrittive 
+
+::: {.panel-tabset}
+
+## Distrattori vs corrette 
+
+```{r}
+data = read.csv("data/data_recode.csv", 
+                header =T, 
+                sep = ",")
+# facciamo pulizia 
+data = data[data$data.accetto.non.accetto %in% 1, ]
+data = data[!data$data.DistributionChannel %in% "preview", ]
+data = data[!grepl("13/12", data$data.StartDate), ]
+
+# prendo solo i dati completi 
+
+d = data[data$data.Finished %in% 1, ]
+
+# rinomino i distrattori
+d.r = d[, -c(1:4)]
+
+for (i in 1:nrow(d.r)) {
+  for (j in 1:ncol(d.r)) {
+    if (is.na(d.r[i,j]) == T) {
+      d.r[i,j] = d.r[i,j]
+    } else if (d.r[i,j] == "correct") {
+      d.r[i,j] = d.r[i,j]
+    } else if (d.r[i, j] == "wp.copy.ic.flip") {
+      d.r[i, j] = "ic"
+    } else if (grepl("ic.", d.r[i,j]) ==T) {
+      d.r[i,j] = "ic"
+    } else if ( grepl("r.", d.r[i,j])) {
+      d.r[i,j] = "r"
+    } else if (grepl("wp.", d.r[i,j])) {
+      d.r[i,j] = "wp"
+    }
+  }
+}
+
+d.r.temp = d.r[,-1]
+d.r.l = stack(d.r.temp)
+d.r.l$ind = as.character(d.r.l$ind)
+d.r.l$set = gsub("_.*", "", d.r.l$ind)
+
+
+ggplot(d.r.l, 
+       aes(x = values)) + geom_bar(aes(y = (..count..)/sum(..count..))) + facet_wrap(~set) + scale_y_continuous(breaks=c(0,.25,.50),
+                       limits = c(0,.50)) +
+    labs(title = levels(d.r.l$ind),
+         y = "Proporzione", 
+         x = "Risposte")+
+    theme_light()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black", 
+                                     angle = 45),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")
+
+```
+
+## Solo distrattori 
+
+```{r}
+# togliendo tutte le risposte corrette, proporzione di distrattori scelti 
+# penso che lo farò per le quaterne di item
+
+d.err = d.r.l[!d.r.l$values %in% "correct", ]
+
+a = table(d.err$ind, d.err$values)
+b = data.frame(rowSums(a))
+b$item = rownames(b)
+colnames(b)[1] = "tot"
+
+d.err1 = data.frame(table(d.err$ind, d.err$values))
+colnames(d.err1)[1] = "item"
+d.err1 = merge(d.err1, b, 
+               by = "item")
+d.err1$prop = d.err1$Freq/d.err1$tot
+
+d.err1[-c(grep("logic", d.err1$item), 
+          grep("visuo", d.err1$item)), "type"] = paste0("visuo", 
+                                                        gsub(".*_", "", d.err1[-c(grep("logic", d.err1$item), 
+          grep("visuo", d.err1$item)), "item"]))
+
+d.err1[c(grep("logic", d.err1$item), 
+          grep("visuo", d.err1$item)), "type"] = gsub(".*_", "", d.err1[c(grep("logic", d.err1$item), 
+          grep("visuo", d.err1$item)), "item"])
+
+
+
+g.dist = list()
+
+for (i in 1:length(unique(d.err1$type))) {
+g.dist[[i]] = ggplot(d.err1[d.err1$type %in% unique(d.err1$type)[i], ], 
+       aes(x = Var2, y = prop, fill = item)) + 
+    geom_bar(stat = "identity", 
+                                                        position = position_dodge()) + 
+  facet_wrap(~type) + theme_light() +
+  theme(axis.text.x = element_text(angle = 90), 
+        legend.position = "none", 
+        axis.title = element_blank())
+}
+
+
+wrap_plots(g.dist, ncol = 3)
+
+```
+
+
+:::
+
+
+
+
+
+# Accordo 
+
+In questo caso calcolo l'accordo sui distrattori, quindi non considero solo la risposta corretta ma anche il distrattore che è stato scelto. 
+
+NB: I DISTRATTORI SONO RICODIFICATI NELLA LORO MACRO-CATEGORIA.
+
+::: {.panel-tabset}
+
+## Tabella
+
+```{r}
+rm(list = ls())
 IRT <- function(theta, a = 1, b = 0, c = 0,e = 1) {
   y <- c + (e - c) * exp(a * (theta - b)) / (1 + exp(a * (theta - b)))
   y[is.na(y)] = 1
@@ -92,19 +229,7 @@ for (i in 1:nrow(d.r)) {
     }
   }
 }
-```
 
-# Accordo 
-
-In questo caso calcolo l'accordo sui distrattori, quindi non considero solo la risposta corretta ma anche il distrattore che è stato scelto. 
-
-NB: I DISTRATTORI SONO RICODIFICATI NELLA LORO MACRO-CATEGORIA.
-
-::: {.panel-tabset}
-
-## Tabella
-
-```{r}
 #| label: accordo.summary
 #| tbl-cap-location: top
 #| tbl-cap: Accordo ENTRO e TRA i set 

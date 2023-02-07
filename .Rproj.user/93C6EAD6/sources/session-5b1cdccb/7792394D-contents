@@ -34,6 +34,10 @@ library(patchwork)
 ## Distrattori vs corrette 
 
 ```{r}
+#| fig-cap: Proporzione di opzioni di risposta scelte per ogni set, attraverso gli anni
+#| fig-subcap: Proporzioni calcolate sul totale delle risposte
+#| fig-cap-location: top
+
 data = read.csv("data/data_recode.csv", 
                 header =T, 
                 sep = ",")
@@ -96,8 +100,12 @@ ggplot(d.r.l,
 ## Solo distrattori 
 
 ```{r}
+#| fig-cap: Proporzioni di distrattori scelti per ogni item
+#| fig-subcap: Calcolate facendo riferimento al numero di risposte errate per ogni item
+#| fig-cap-location: top
 # togliendo tutte le risposte corrette, proporzione di distrattori scelti 
 # penso che lo farò per le quaterne di item
+
 
 d.err = d.r.l[!d.r.l$values %in% "correct", ]
 

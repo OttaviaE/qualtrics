@@ -1,0 +1,631 @@
+---
+title: "Rasch time"
+author: "Ottavia"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: 
+    toc: yes 
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      fig.align = "center")
+data = read.csv("data/raven2301NUM.csv", header = T, 
+                sep = ",")
+library(psych)
+library(ggplot2)
+library(TAM)
+library(mokken)
+library(dplyr)
+library(lme4)
+IRT <- function(theta, a = 1, b = 0, c = 0,e = 1) {
+  y <- c + (e - c) * exp(a * (theta - b)) / (1 + exp(a * (theta - b)))
+  y[is.na(y)] = 1
+  return(y)
+}
+
+irt.icc = function(model) {
+  item_par = model$item
+  est_theta = seq(-4,4, length.out=1000)
+  item_prob = list()
+  if (any(grep("guess", colnames(item_par))) == F) {
+    for (i in 1:nrow(item_par)) {
+      item_prob[[i]] = data.frame(theta = est_theta)
+      item_prob[[i]]$it_p = IRT(item_prob[[i]]$theta, 
+                          b = item_par[i, "xsi.item"], 
+                          a = item_par[i, "B.Cat1.Dim1"])
+      item_prob[[i]]$item = item_par[i, "item"]
+}
+  } else {
+     for (i in 1:nrow(item_par)) {
+      item_prob[[i]] = data.frame(theta = est_theta)
+      item_prob[[i]]$it_p = IRT(item_prob[[i]]$theta, 
+                          b = item_par[i, "AXsi_.Cat1"], 
+                          a = item_par[i, "B.Cat1.Dim1"], 
+                          c = item_par[i, "guess"])
+      item_prob[[i]]$item = item_par[i, "item"]
+}
+  }
+  p = do.call("rbind", item_prob)
+  gp = ggplot(p, 
+       aes(x = theta, y = it_p, group = item, col =
+             item)) + geom_line(lwd = 1)
+  object = list(prob.data = p, 
+              icc.graph = gp)
+return(object)
+}
+
+# 80 osservazioni
+head(data)
+# tolgo i due fenomeni che non hanno accettato 
+num.c =  sum(data$accetto.non.accetto %in% 2)
+d = data[data$accetto.non.accetto %in% 1, ]
+
+
+# tolgo anche le preview 
+num.p = sum(d$DistributionChannel %in% "preview")
+d = d[!d$DistributionChannel %in% "preview", ]
+
+# tolgo tutte le comiplazioni fatte il 13/12 
+num.13 = sum(grepl("13/12", d$StartDate))
+d = d[!grepl("13/12", d$StartDate), ]
+
+d.full = d[d$Finished %in% 1, ]
+
+
+d.a.all = d.full[, c(6, 9, 39:52)]
+d.b.all = d.full[, c(6, 9, 53:66)]
+
+for (i in 1:nrow(d.a.all)) {
+  for (j in 3:ncol(d.a.all)) {
+    if (is.na(d.a.all[i, j])) {
+      d.a.all[i, j] = NA
+    } else if (d.a.all[i, j] == 1) {
+      d.a.all[i, j] = d.a.all[i, j]
+    } else {
+      d.a.all[i, j] = 0
+    }
+  }
+}
+
+for (i in 1:nrow(d.b.all)) {
+  for (j in 3:ncol(d.b.all)) {
+    if (is.na(d.b.all[i, j])) {
+      d.b.all[i, j] = NA
+    } else if (d.b.all[i, j] == 1) {
+      d.b.all[i, j] = d.b.all[i, j]
+    } else {
+      d.b.all[i, j] = 0
+    }
+  }
+}
+
+```
+
+Prendo solo i dati che qualtrics identifica come persone che hanno finito, dopo aver applicato i criteri di pulizia come nell'altro file. L'analisi è quindi svolta su un dataset complessivo di `r nrow(d.full)`.
+
+## Analisi separata SET A e SET B
+
+Penso che userò solo i dati completi, anche se si riduce l'ampiezza campionaria. 
+
+In questo caso, stimo separatamente il modello di Rasch sul set A e sul set B. 
+
+### Set A
+
+```{r fig.cap="ICC set A con coppie equivalenti di item"}
+a.rasch = tam.mml(d.a.all[, -c(1:2)], verbose = F)
+
+summary(a.rasch)
+
+a.fit = tam.modelfit(a.rasch, progress = F)
+#summary(a.fit)
+
+a.item.fit = IRT.itemfit(a.rasch)
+
+a.icc = irt.icc(a.rasch)$prob.data
+a.icc$item = factor(a.icc$item, 
+                    levels = c("a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4"))
+# ggplot(a.icc, 
+#        aes(x = theta, y = it_p, group = item, 
+#            col = item, linetype = item)) + geom_line(lwd = 1)
+
+# conviene stamparli a coppie di 2 
+# creo un'altra variabile, quella che dice visuo 1 ecc
+
+a.icc$label = as.integer(gsub("\\D", "", a.icc$item))
+a.icc$temp =  as.integer(gsub("\\D", "", a.icc$item))
+a.icc$temp = ifelse(a.icc$temp > 10, 
+       a.icc$temp - 10, a.icc$temp)
+a.icc$type = ifelse(grepl("logic", a.icc$item) == T, 
+                    "logic", "visuo")
+a.icc$label = factor(paste0(a.icc$type, a.icc$temp))
+a.icc$twin = as.integer(gsub("\\D", "", a.icc$item))
+a.icc$twin = as.factor(ifelse(a.icc$twin > 10, 
+       1, 0))
+
+ggplot(a.icc, 
+       aes(x = theta, y = it_p, group = item, 
+           col = item, linetype = twin)) + geom_line(lwd = 1) + 
+  facet_wrap(~label)
+
+
+
+a.people = IRT.factor.scores(a.rasch)
+a.people$sbj = 1:nrow(a.people)
+a.people$set = "A"
+
+
+
+
+
+
+
+# prendo gli item dei due set 
+
+```
+
+Le persone: 
+
+```{r fig.cap="Distribuzione abilità delle persone"}
+
+
+ggplot(a.people, 
+       aes(x = as.factor(sbj), y = EAP)) + geom_point()
+
+
+# mi unisco i dati osservati per fare una sorta di confornto tra osservato e atteso 
+# 
+# d.a.all$ResponseId = paste0(1:nrow(d.a.all))
+# 
+# d.a.obs = d.a.all
+# d.a.obs$score = rowSums(d.a.obs[, -c(1,2)], na.rm = T)
+# 
+# d.a.obs = d.a.obs[, c("score", "ResponseId")]
+# d.a.obs$set = "A"
+# colnames(d.a.obs) = c("score", "sbj", "set")
+# d.a.obs$type = "obs"
+# 
+# comp.oe.a = a.people[,c("EAP", "sbj", "set")]
+# colnames(comp.oe.a) = c("score", "sbj", "set")
+# comp.oe.a$type = "expected"
+# 
+# comp.oe.a = rbind(comp.oe.a, d.a.obs)
+# 
+# ggplot(comp.oe.a, 
+#        aes(x = as.factor(sbj), y = score, 
+#            color = type)) + geom_point()
+
+```
+
+
+
+Faccio il confronto delle difficoltà degli item gemelli ENTRO il set (Grafico a Pallini): 
+
+```{r}
+
+
+
+item.a =a.rasch$xsi
+item.a$set = "A"
+
+i.a = item.a
+i.a$item = rownames(i.a) 
+
+i.a1 = cbind(i.a[grep("a_", i.a$item), ], 
+      i.a[grep("a1_", i.a$item), ])
+
+i.a1 = i.a1[, c(4, 3,1,2, 8, 5,6)]
+colnames(i.a1) = c("item", "set", "b_A", 
+                   "se_bA", "label", 
+                   "b_A1", 
+                   "se_bA1")
+
+i.a1$label = ifelse(grepl("logic", 
+                          i.a1$label) == TRUE, 
+                    paste0("logic", gsub("\\D", "", i.a1$item)), 
+                    paste0("visuo", gsub("\\D", "", i.a1$item)))
+
+
+i.a1$diff = with(i.a1, 
+                ((b_A - b_A1)))
+
+i.a1 = i.a1[order(abs(i.a1$diff)), ]
+i.a1$label = factor(i.a1$label, 
+                    i.a1$label)
+
+i.a1 %>% 
+  arrange(diff) %>% 
+  mutate(label = factor( label, label))
+
+
+ggplot(i.a1) +
+  geom_segment( aes(x=as.factor(label), xend=as.factor(label), y=b_A, yend=b_A1), color="black") +
+  geom_point( aes(x=label, y=b_A), color=rgb(0.2,0.7,0.1,0.5), size=5 ) +
+  geom_point( aes(x=label, y=b_A1), color=rgb(0.7,0.2,0.1,0.5), size=5 ) +
+  coord_flip()+
+  theme_light() +
+  xlab("") 
+```
+
+
+### Set B 
+
+
+```{r fig.cap="ICC set A con coppie equivalenti di item"}
+b.rasch = tam.mml(d.b.all[, -c(1:2)], verbose = F)
+
+summary(b.rasch)
+
+b.fit = tam.modelfit(b.rasch, progress = F)
+#summary(a.fit)
+
+b.item.fit = IRT.itemfit(b.rasch)
+
+b.icc = irt.icc(b.rasch)$prob.data
+b.icc$item = factor(b.icc$item, 
+                    levels = c("b_visuo1", "b1_visuo1", 
+                              "b_visuo2", "b1_visuo2", 
+                              "b_visuo3", "b1_visuo3", 
+                              "b_logic1", "b1_logic1", 
+                              "b_logic2", "b1_logic2", 
+                              "b_logic3", "b1_logic3", 
+                              "b_logic4", "b1_logic4"))
+# ggplot(a.icc, 
+#        aes(x = theta, y = it_p, group = item, 
+#            col = item, linetype = item)) + geom_line(lwd = 1)
+
+# conviene stamparli a coppie di 2 
+# creo un'altra variabile, quella che dice visuo 1 ecc
+
+b.icc$label = as.integer(gsub("\\D", "", b.icc$item))
+b.icc$temp =  as.integer(gsub("\\D", "", b.icc$item))
+b.icc$temp = ifelse(b.icc$temp > 10, 
+       b.icc$temp - 10, b.icc$temp)
+b.icc$type = ifelse(grepl("logic", b.icc$item) == T, 
+                    "logic", "visuo")
+b.icc$label = factor(paste0(b.icc$type, b.icc$temp))
+b.icc$twin = as.integer(gsub("\\D", "", b.icc$item))
+b.icc$twin = as.factor(ifelse(b.icc$twin > 10, 
+       1, 0))
+
+ggplot(b.icc, 
+       aes(x = theta, y = it_p, group = item, 
+           col = item, linetype = twin)) + geom_line(lwd = 1) + 
+  facet_wrap(~label)
+
+
+
+
+
+
+
+
+
+
+
+
+
+# prendo gli item dei due set 
+
+```
+
+Le persone: 
+
+```{r fig.cap="Distribuzione abilità delle persone"}
+
+b.people = IRT.factor.scores(b.rasch)
+b.people$sbj = 1:nrow(b.people)
+b.people$set = "A"
+ggplot(b.people, 
+       aes(x = as.factor(sbj), y = EAP)) + geom_point()
+
+
+# mi unisco i dati osservati per fare una sorta di confornto tra osservato e atteso 
+# 
+# d.b.all$ResponseId = paste0(1:nrow(d.b.all))
+# 
+# d.b.obs = d.b.all
+# d.b.obs$score = rowSums(d.b.obs[, -c(1,2)], nb.rm = T)
+# 
+# d.b.obs = d.b.obs[, c("score", "ResponseId")]
+# d.b.obs$set = "A"
+# colnames(d.b.obs) = c("score", "sbj", "set")
+# d.b.obs$type = "obs"
+# 
+# comp.oe.a = b.people[,c("EAP", "sbj", "set")]
+# colnames(comp.oe.a) = c("score", "sbj", "set")
+# comp.oe.a$type = "expected"
+# 
+# comp.oe.a = rbind(comp.oe.a, d.b.obs)
+# 
+# ggplot(comp.oe.a, 
+#        aes(x = as.factor(sbj), y = score, 
+#            color = type)) + geom_point()
+
+
+```
+
+
+
+Faccio il confronto delle difficoltà degli item gemelli ENTRO il set (Grafico a Pallini): 
+
+```{r}
+
+
+item.b =b.rasch$xsi
+item.b$set = "B"
+
+i.b = item.b
+i.b$item = rownames(i.b) 
+
+i.b1 = cbind(i.b[grep("b_", i.b$item), ], 
+      i.b[grep("b1_", i.b$item), ])
+
+i.b1 = i.b1[, c(4, 3,1,2, 8, 5,6)]
+colnames(i.b1) = c("item", "set", "b_B", 
+                   "se_bB", "label", 
+                   "b_B1", 
+                   "se_bB1")
+
+i.b1$label = ifelse(grepl("logic", 
+                          i.b1$label) == TRUE, 
+                    paste0("logic", gsub("\\D", "", i.b1$item)), 
+                    paste0("visuo", gsub("\\D", "", i.b1$item)))
+
+
+i.b1$diff = with(i.b1, 
+                ((b_B - b_B1)))
+
+i.b1 = i.b1[order(abs(i.b1$diff)), ]
+i.b1$label = factor(i.b1$label, 
+                    i.b1$label)
+
+i.b1 %>% 
+  arrange(diff) %>% 
+  mutate(label = factor( label, label))
+
+
+ggplot(i.b1) +
+  geom_segment( aes(x=as.factor(label), xend=as.factor(label), y=b_B, yend=b_B1), color="black") +
+  geom_point( aes(x=label, y=b_B), color=rgb(0.2,0.7,0.1,0.5), size=5 ) +
+  geom_point( aes(x=label, y=b_B1), color=rgb(0.7,0.2,0.1,0.5), size=5 ) +
+  coord_flip()+
+  theme_light() +
+  xlab("") 
+```
+
+# Confronto TRA set 
+
+Siccome al momento ho 35 soggetti e mettere insieme i 28 item vorrebbe dire provare a stimare un modello con 29 parametri, per fare i confronti tra i set mi muovo come ho fatto per il calcolo dell'accordo TRA set, ossia appaiando A-B e A1-B1
+
+```{r}
+a = d.a.all[, grep("a_", colnames(d.a.all))]
+b = d.b.all[, grep("b_", colnames(d.b.all))]
+
+
+
+ab = cbind(a, b)
+
+ab.rasch = tam.mml(ab, verbose = F)
+
+
+ab.icc = irt.icc(ab.rasch)$prob.data
+ab.icc$item = factor(ab.icc$item, 
+                    levels = c( "a_1", 
+                                "b_visuo1",  
+              "a_2", "b_visuo2", 
+              "a_3", "b_visuo3", 
+              "a_logic1", "b_logic1", 
+              "a_logic2", "b_logic2", 
+              "a_logic3", "b_logic3", 
+              "a_logic4", "b_logic4"))
+# ggplot(ab.icc, 
+#        aes(x = theta, y = it_p, group = item, 
+#            col = item, linetype = item)) + geom_line(lwd = 1)
+
+# conviene stamparli a coppie di 2 
+# creo un'altra variabile, quella che dice visuo 1 ecc
+
+ab.icc$label = as.integer(gsub("\\D", "", ab.icc$item))
+ab.icc$temp =  as.integer(gsub("\\D", "", ab.icc$item))
+ab.icc$temp = ifelse(ab.icc$temp > 10, 
+       ab.icc$temp - 10, ab.icc$temp)
+ab.icc$type = ifelse(grepl("logic", ab.icc$item) == T, 
+                    "logic", "visuo")
+ab.icc$label = factor(paste0(ab.icc$type, ab.icc$temp))
+ab.icc$set = ifelse(grepl("a_", ab.icc$item) == T, 
+                     "A", "B")
+
+
+ggplot(ab.icc, 
+       aes(x = theta, y = it_p, group = item, 
+           col = item, linetype = set)) + geom_line(lwd = 1) + 
+  facet_wrap(~label)
+
+
+
+```
+
+# Analisi distrattori come diceva Pasquale 
+
+```{r}
+library(summarytools)
+
+ab = d.full[, c(6, 9, 39:66)]
+item = ab
+for(i in 3:ncol(ab)) {
+  item[,i] = ifelse(item[, i] == 1, paste0(item[,i], "-"), item[,i])
+}
+
+# questa cosa la posso fare solo sugli item dove so già che ho tante risposte errate 
+
+item = d.full[, c(39:66)]
+
+y = stack(item)
+y$values = factor(y$values)
+y$ind = factor(y$ind, 
+               levels = c(
+                    "a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4", 
+                    "b_visuo1", "b1_visuo1", 
+                              "b_visuo2", "b1_visuo2", 
+                              "b_visuo3", "b1_visuo3", 
+                              "b_logic1", "b1_logic1", 
+                              "b_logic2", "b1_logic2", 
+                              "b_logic3", "b1_logic3", 
+                              "b_logic4", "b1_logic4"))
+y$Risposta = factor(ifelse(y$values == 1, "correct", "wrong"))
+
+grafici = list()
+
+for (i in 1:ncol(item)){
+grafici[[i]] <- ggplot(y[which(y$ind == colnames(item)[i]),], 
+                       aes(values, fill = Risposta)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)))  +
+  scale_x_discrete(drop = FALSE) +
+  # geom_text(aes(y = ((..count..)/sum(..count..)), label = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+  scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                     limits = c(0,1)) +
+  labs(title = colnames(item)[i],
+    y = "Proporzione", 
+       x = "Risposte")+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+  theme(axis.text.y = element_text(size=12, color="black"),
+        axis.title.y = element_text(size=12),
+        axis.text.x = element_text(size=12, color="black"),
+        axis.title.x = element_text(size=12),
+        title = element_text(size=12))+
+  geom_hline(yintercept=.25, linetype="dashed")+
+  geom_hline(yintercept=.50, linetype="dashed")+
+  geom_hline(yintercept=.75, linetype="dashed")
+}
+library(patchwork)
+g1 = grafici[c(1:14)]
+wrap_plots(g1, ncol = 3)
+
+
+# item = item[,-c(1:2)]
+# distrib <- list()
+# 
+# #loop per inserire la tabella di frequenza dell'item i in uno slot della lista
+# for (i in 1:ncol(item)){
+#   distrib[[i]] <- freq(item[,i])
+# }
+
+#assegna agli slot della lista il nome degli item
+# names(distrib) <- colnames(item)
+# 
+# distrattori = d.full[, c(39:66)]
+# 
+# for (i in 1:ncol(distrattori)) {
+#   distrattori[,i] = ifelse(distrattori[,i] == 1, NA, distrattori[,i])
+# }
+# 
+# 
+# distribuzione <- list()
+# for (i in 1:ncol(distrattori)){
+#   distribuzione[[i]] <- sqrt(chisq.test(table(distrattori[,i]))$statistic/sum(table(distrattori[,i])))
+# }
+# 
+# #mostra i risultati
+# tabella_distrattori <- plyr::ldply(distribuzione)
+# colnames(tabella_distrattori) <- "r"
+# tabella_distrattori$Interpretazione <- ifelse(abs(tabella_distrattori$r) < .10, "Trascurabile",
+#                                               ifelse(abs(tabella_distrattori$r) < .30, "Piccolo",
+#                                                      ifelse(abs(tabella_distrattori$r) < .50, "Moderato", "Grande")))
+# tabella_distrattori
+
+```
+
+
+
+```{r}
+g2 = grafici[c(15:length(grafici))]
+wrap_plots(g2, ncol = 3)
+```
+
+
+# LMM
+
+Voglio andare a (almeno provare) a fare un'analisi più comprensiva. Voglio considerare in un unico modello: 
+
+- il set (A vs. B)
+
+- Il tipo di item (posso considerare visuo, visuo1, visuo2 eccetera o come item equivalente) 
+
+- Gli item
+
+Prima cosa: devo sistemare il dataset in modo da avere in formato Long tutte le risposte (sempre codificate come 1/0)
+
+```{r}
+ab.all =  cbind(d.a.all[, c(grep("ResponseId", colnames(d.a.all)),
+                      grep("a_", colnames(d.a.all)))], 
+                d.b.all[, grep("b_", colnames(d.b.all))])
+
+ab.l = reshape(ab.all, 
+               idvar = "ResponseId",
+               times = names(ab.all)[-1], 
+               timevar = "item", 
+               varying = list(names(ab.all)[-1]), 
+               direction = "long", 
+               v.names = "resp")
+
+ab.l$set = ifelse(grepl("a_", ab.l$item) == T, 
+                  "A", "B")
+ab.l$type.gen = ifelse(grepl("logic", ab.l$item) == T, 
+                  "logic", "visuo")
+
+ab.l$type = paste0(ab.l$type.gen, 
+                   gsub("\\D", "", ab.l$item))
+
+ab.l$twin = as.integer(gsub("\\D", "", ab.l$item))
+ab.l$twin = as.factor(ifelse(ab.l$twin > 10, 
+       1, 0))
+
+colnames(ab.l)[1] = "sbj" 
+
+head(ab.l)
+
+```
+
+Il modello più semplice che mi vien in mente va a specificare l'effetto random sia dei soggetti sia degli item ma considera l'effetto fisso dei 
+
+```{r echo = T}
+m1 = glmer(resp ~ 0 + type.gen + (1|sbj) + (1|item), 
+           data = ab.l, 
+           family = "binomial")
+summary(m1)
+
+
+m2 = glmer(resp ~ 0 + type.gen + set + (1|sbj) + (1|item), 
+           data = ab.l, 
+           family = "binomial")
+summary(m2)
+
+
+m3 = glmer(resp ~ 0 + type.gen*set + (1|sbj) + (1|item), 
+           data = ab.l, 
+           family = "binomial")
+summary(m3)
+
+# per stimare semplicemente la difficoltà degli item posso metterli come effetti fissi
+# per come è scritto il modello 1, ho le stime di difficoltà degli item 
+
+ranef(m1)$item
+
+```
+

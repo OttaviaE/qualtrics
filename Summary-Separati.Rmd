@@ -1,0 +1,819 @@
+---
+title: "Set separati"
+author: "Ottavia"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+data = read.csv("data/raven2301NUM.csv", header = T, 
+                sep = ",")
+library(psych)
+library(ggplot2)
+
+# 80 osservazioni
+head(data)
+# tolgo i due fenomeni che non hanno accettato 
+num.c =  sum(data$accetto.non.accetto %in% 2)
+d = data[data$accetto.non.accetto %in% 1, ]
+
+
+# tolgo anche le preview 
+num.p = sum(d$DistributionChannel %in% "preview")
+d = d[!d$DistributionChannel %in% "preview", ]
+
+# tolgo tutte le comiplazioni fatte il 13/12 
+num.13 = sum(grepl("13/12", d$StartDate))
+d = d[!grepl("13/12", d$StartDate), ]
+
+perc = .70
+perc1 = .95
+
+```
+
+\newpage
+
+
+Grafici per elisa: 
+
+- prop risposte corrette nei blocchi in B/N
+- togliere titolo asse x 
+- label: Proportion (tutte in proporzione)
+- legenda: Wrong, correct, NA, senza titolo 
+- accordo ENTRO blocco e tra blocchi 
+
+- Accordo nei blocchi conffronto, togliere var x 
+- accordo tra blocchi (ultimo grafico)
+
+Totale di `r nrow(data)` soggetti. Sono stati tolti `r nrow(data) - nrow(d)` perché mancava il consenso ($n = `r num.c`$), perché preview ($n = `r num.p`$) o perché sono state fatte il 13 dicembre ($n = `r num.13`$). 
+
+Metto come filtro il `r perc*100`% sul Set A e sul Set B. (Forse  `r perc*100`% va cambiato, perché nel 7 A viene incluso un soggetto che ha 9 risposte NA, che però sono il 64% per cui viene incluso.) 
+
+
+```{r}
+d.a.all = d[, c(6, 9, 39:52)]
+d.b.all = d[, c(6, 9, 53:66)]
+
+d.a.all$filter = 0 
+
+for (i in 1:(nrow(d.a.all))) {
+  if (sum(is.na(d.a.all[i, ]))/(ncol(d.a.all)-3) > perc) { # 3 perché 3 colonne non fanno rif agli item
+    d.a.all[i, "filter"] = "out"
+  } else {
+    d.a.all[i, "filter"] = "in"
+  }
+}
+
+d.b.all$filter = 0 
+
+for (i in 1:(nrow(d.b.all))) {
+  if (sum(is.na(d.b.all[i, ]))/(ncol(d.b.all)-3) > perc) { # 3 perché 3 colonne non fanno rif agli item
+    d.b.all[i, "filter"] = "out"
+  } else {
+    d.b.all[i, "filter"] = "in"
+  }
+}
+
+d.full = d[d$Finished %in% 1, c(6, 9, 34:37, 39:72)]
+d.full$sbj = paste0("s", 1:nrow(d.full))
+d.full$filter = 0 
+
+```
+
+Nel set A vengono tenuti `r table(d.a.all$filter)[1]` soggetti, nel set B `r table(d.b.all$filter)[1]`. Considerando invece solo i dati delle persone che hanno portato a termine tutto si hanno `r nrow(d.full)` soggetti. 
+
+# Set A
+
+## Proporzione risposte corrette
+
+Set A, $n = `r table(d.a.all$filter)[1]`$
+
+```{r fig.cap="Set A, proporzione risposte corrette"}
+d.a = d.a.all[d.a.all$filter %in% "in", ]
+d.b = d.b.all[d.b.all$filter %in% "in", ]
+
+d.a$sbj = paste0("s", 1:nrow(d.a))
+setA = d.a[, c(grep("sbj", colnames(d.a)), 
+              grep("a_", colnames(d.a)), 
+              grep("a1_", colnames(d.a)))]
+setA.full = d.full[, c(grep("sbj", colnames(d.full)), 
+              grep("a_", colnames(d.full)), 
+              grep("a1_", colnames(d.full)))]
+al = reshape(setA, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(setA)),
+              times = names(setA)[-1],
+              timevar = "stim", v.names = "resp")
+al$dic = ifelse(is.na(al$resp), 
+                "NA", 
+                ifelse(al$resp == 1,
+                "correct", "error"))
+
+
+al.full = reshape(setA.full, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(setA)),
+              times = names(setA)[-1],
+              timevar = "stim", v.names = "resp")
+al.full$dic = ifelse(is.na(al.full$resp), 
+                "NA", 
+                ifelse(al.full$resp == 1,
+                "correct", "error"))
+
+p.set.a = data.frame(table(al$stim, al$dic))
+p.set.a$tot = nrow(setA)
+p.set.a$prop =p.set.a$Freq/p.set.a$tot
+p.set.a$Var2 = factor(p.set.a$Var2, 
+                levels = c( "error", "correct", "NA"))
+
+ggplot(p.set.a, 
+       aes(x = Var1, fill = Var2, y = prop)) +geom_bar(stat = "identity") + 
+  scale_x_discrete(limits = c("a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4")) + 
+  theme(axis.text.x = element_text(angle = 45))
+
+```
+
+
+\newpage
+
+Set A, $n = `r nrow(d.full)`$
+
+```{r fig.cap="Set A, proporzione risposte corrette (solo interi)"}
+p.set.a.full = data.frame(table(al.full$stim, al.full$dic))
+p.set.a.full$tot = nrow(setA.full)
+p.set.a.full$prop =p.set.a.full$Freq/p.set.a.full$tot
+p.set.a.full$Var2 = factor(p.set.a.full$Var2, 
+                levels = c( "error", "correct", "NA"))
+ggplot(p.set.a.full, 
+       aes(x = Var1, fill = Var2, y = prop)) +geom_bar(stat = "identity") + 
+  scale_x_discrete(limits = c("a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4")) + 
+  theme(axis.text.x = element_text(angle = 45))
+```
+
+\newpage
+
+## Accordo NEL set A
+
+Se danno la stessa risposta su entrambe gli item $\rightarrow$ Accordo 
+
+Se danno due risposte $\rightarrow$ Disaccordo 
+
+Se una delle due risposte è NA $\rightarrow$ NA
+
+
+
+```{r fig.cap="Accordo tra item gemelli NELLO stesso set (A)"}
+setAc = setA
+for (i in 1:nrow(setAc)) {
+  for (j in 2:ncol(setAc)) {
+    if (is.na(setAc[i, j]) == T) {
+      setAc[i, j] = setAc[i, j] 
+    } else if (setAc[i, j] != 1) {
+      setAc[i, j] = 0
+    } else {
+      setAc[i, j] = 1
+    }
+  }
+}
+
+setAc.full = setA.full
+for (i in 1:nrow(setAc.full)) {
+  for (j in 2:ncol(setAc.full)) {
+    if (is.na(setAc.full[i, j]) == T) {
+      setAc.full[i, j] = setAc.full[i, j] 
+    } else if (setAc.full[i, j] != 1) {
+      setAc.full[i, j] = 0
+    } else {
+      setAc.full[i, j] = 1
+    }
+  }
+}
+
+setAc  = setAc[, c("sbj",
+                 "a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4")]
+
+setAc.full  = setAc.full[, c("sbj",
+                 "a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4")]
+
+# breve check na 
+na.check = apply(setAc[,-1],2,is.na)
+
+
+pa = NULL
+
+
+for (i in seq(2,ncol(setAc), by = 2)) {
+  temp = setAc[,i] == setAc[, i+1]
+  pa = cbind(pa, temp)
+}
+
+
+pa = data.frame(pa)
+colnames(pa) = c("visuo1", "visuo2", "visuo3", "logic1", "logic2", "logic3", "logic4")
+# 
+
+pa.full = NULL
+
+
+for (i in seq(2,ncol(setAc.full), by = 2)) {
+  temp = setAc.full[,i] == setAc.full[, i+1]
+  pa.full = cbind(pa.full, temp)
+}
+
+
+pa.full = data.frame(pa.full)
+colnames(pa.full) = c("visuo1", "visuo2", "visuo3", "logic1", "logic2", "logic3", "logic4")
+# 
+
+sum.set.a = ((colSums(pa, na.rm = T)/nrow(pa))*100)
+sum.set.a.full = (colSums(pa.full, na.rm = T)/nrow(pa.full))*100
+
+# 
+# colSums(pa.full, na.rm = T)/(nrow(pa.full) - colSums(pa.full, na.rm = T))
+
+sum.set.a.l = stack(sum.set.a)
+sum.set.a.l$set = "A"
+sum.set.a.l$values = round(sum.set.a.l$values, 2)
+sum.set.a.l$prop = sum.set.a.l$values/100
+
+ggplot(sum.set.a.l, 
+       aes(x = ind, y = prop)) + geom_bar(stat = "identity") + ylim(0, 1) + 
+  ylab("Proportion")  + 
+  geom_text(aes(label=round(prop, 2)), vjust=1.6, color="white", size=6.5) + theme_bw() +
+   theme(axis.text.x = element_text(angle = 90, size = 22), 
+        axis.title.x = element_blank(), 
+        legend.title = element_blank(), 
+        legend.position = "bottom", 
+        axis.title.y = element_text(size = 26), 
+        axis.text.y = element_text(size = 22), 
+        legend.text = element_text(size = 22), 
+        strip.text.x = element_text(size = 22))  +
+  ylab("Proportion")
+
+```
+
+\newpage
+
+<!-- ## Odds ratio nel SET A -->
+
+<!-- ```{r fig.cap="Odds ratio set A"} -->
+<!-- # odds.a = data.frame(stim = colnames(pa),  -->
+<!-- #                     od =colSums(pa, na.rm = T)/(nrow(pa) - colSums(pa, na.rm = T))) -->
+<!-- #  -->
+<!-- # ggplot(odds.a,  -->
+<!-- #        aes(x = od, y = 1:7)) +  -->
+<!-- #   geom_point(aes(color=stim), size = 5) + -->
+<!-- #   scale_y_continuous(breaks = 1:7, labels = odds.a$stim) + geom_vline(aes(xintercept = 1), size = .25, linetype = "dashed") -->
+<!-- za = data.frame(rbind(colSums(pa, na.rm = T), -->
+<!-- nrow(pa) - colSums(pa, na.rm = T))) -->
+
+<!-- zb = data.frame(rbind(colSums(pb, na.rm = T), -->
+<!-- nrow(pb) - colSums(pb, na.rm = T))) -->
+
+<!-- y = cbind(za[,2], zb[,2]) -->
+
+
+<!-- (y[1,1]/nrow(pa))/(y[1,2]/nrow(pb)) -->
+
+<!-- ``` -->
+
+
+# Set B 
+
+Set b, $n = `r table(d.a.all$filter)[1]`$
+
+
+```{r fig.cap="Set A, proporzione risposte corrette"}
+d.b$sbj = paste0("s", 1:nrow(d.b))
+
+setB = d.b[, c(grep("sbj", colnames(d.b)),
+              grep("b_", colnames(d.b)), 
+              grep("b1", colnames(d.b)))]
+
+setB.full = d.full[, c(grep("sbj", colnames(d.full)),
+              grep("b_", colnames(d.full)), 
+              grep("b1", colnames(d.full)))]
+bl = reshape(setB, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(setB)),
+              times = names(setB)[-1],
+              timevar = "stim", v.names = "resp")
+bl$dic = ifelse(is.na(bl$resp), 
+                "NA", 
+                ifelse(bl$resp == 1,
+                "correct", "error"))
+
+
+bl.full = reshape(setB.full, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(setB.full)),
+              times = names(setB.full)[-1],
+              timevar = "stim", v.names = "resp")
+bl.full$dic = ifelse(is.na(bl.full$resp), 
+                "NA", 
+                ifelse(bl.full$resp == 1,
+                "correct", "error"))
+
+p.set.b = data.frame(table(bl$stim, bl$dic))
+p.set.b$tot = nrow(setA)
+p.set.b$prop =p.set.b$Freq/p.set.b$tot
+p.set.b$Var2 = factor(p.set.b$Var2, 
+                levels = c( "error", "correct", "NA"))
+
+p.set.b$prop = round(p.set.b$prop, 2)
+
+ggplot(p.set.b, 
+       aes(x = Var1, fill = Var2, y = prop)) +geom_bar(stat = "identity") + 
+  scale_x_discrete(limits = c("b_visuo1", "b1_visuo1", 
+                              "b_visuo2", "b1_visuo2", 
+                              "b_visuo3", "b1_visuo3", 
+                              "b_logic1", "b1_logic1", 
+                              "b_logic2", "b1_logic2", 
+                              "b_logic3", "b1_logic3", 
+                              "b_logic4", "b1_logic4")) + 
+  theme(axis.text.x = element_text(angle = 45))  + xlab("Stimulus") + ylab("Proportion")
+
+```
+
+
+
+
+<!-- ## Odds ratio nel SET B -->
+
+<!-- ```{r fig.cap="Odds ratio set A"} -->
+<!-- odds.b = data.frame(stim = colnames(pb),  -->
+<!--                     od =colSums(pb, na.rm = T)/(nrow(pb) - colSums(pb, na.rm = T))) -->
+
+<!-- ggplot(odds.b,  -->
+<!--        aes(x = od, y = 1:7)) +  -->
+<!--   geom_point(aes(color=stim), size = 5) + -->
+<!--   scale_y_continuous(breaks = 1:7, labels = odds.b$stim) + geom_vline(aes(xintercept = 1), size = .25, linetype = "dashed") -->
+<!-- ``` -->
+
+
+\newpage
+
+## Accordo set B
+
+Se danno la stessa risposta su entrambe gli item $\rightarrow$ Accordo 
+
+Se danno due risposte $\rightarrow$ Disaccordo 
+
+Se una delle due risposte è NA $\rightarrow$ NA
+
+
+
+```{r fig.cap="Accordo item gemelli NELLO stesos set (B)"}
+setBc = setB
+for (i in 1:nrow(setBc)) {
+  for (j in 2:ncol(setBc)) {
+    if (is.na(setBc[i, j]) == T) {
+      setBc[i, j] = setBc[i, j] 
+    } else if (setBc[i, j] != 1) {
+      setBc[i, j] = 0
+    } else {
+      setBc[i, j] = 1
+    }
+  }
+}
+
+setBc.full = setB.full
+for (i in 1:nrow(setBc.full)) {
+  for (j in 2:ncol(setBc.full)) {
+    if (is.na(setBc.full[i, j]) == T) {
+      setBc.full[i, j] = setBc.full[i, j] 
+    } else if (setBc.full[i, j] != 1) {
+      setBc.full[i, j] = 0
+    } else {
+      setBc.full[i, j] = 1
+    }
+  }
+}
+
+setBc  = setBc[, c("sbj",
+                 "b_visuo1", "b1_visuo1", 
+                              "b_visuo2", "b1_visuo2", 
+                              "b_visuo3", "b1_visuo3", 
+                              "b_logic1", "b1_logic1", 
+                              "b_logic2", "b1_logic2", 
+                              "b_logic3", "b1_logic3", 
+                              "b_logic4", "b1_logic4")]
+
+setBc.full  = setBc.full[, c("sbj",
+                 "b_visuo1", "b1_visuo1", 
+                              "b_visuo2", "b1_visuo2", 
+                              "b_visuo3", "b1_visuo3", 
+                              "b_logic1", "b1_logic1", 
+                              "b_logic2", "b1_logic2", 
+                              "b_logic3", "b1_logic3", 
+                              "b_logic4", "b1_logic4")]
+
+# breve check na 
+na.check = apply(setBc[,-1],2,is.na)
+
+
+pb = NULL
+
+
+for (i in seq(2,ncol(setBc), by = 2)) {
+  temp = setBc[,i] == setBc[, i+1]
+  pb = cbind(pb, temp)
+}
+
+
+pb = data.frame(pb)
+colnames(pb) = c("visuo1", "visuo2", "visuo3", "logic1", "logic2", "logic3", "logic4")
+# 
+
+pb.full = NULL
+
+
+for (i in seq(2,ncol(setBc.full), by = 2)) {
+  temp = setBc.full[,i] == setBc.full[, i+1]
+  pb.full = cbind(pb.full, temp)
+}
+
+
+pb.full = data.frame(pb.full)
+colnames(pb.full) = c("visuo1", "visuo2", "visuo3", "logic1", "logic2", "logic3", "logic4")
+# 
+
+sum.set.b = ((colSums(pb, na.rm = T)/nrow(pb))*100)
+sum.set.b.full = (colSums(pb.full, na.rm = T)/nrow(pb.full))*100
+
+sum.set.b.l = stack(sum.set.b)
+sum.set.b.l$set = "B"
+sum.set.b.l$values = round(sum.set.b.l$values, 2)
+sum.set.b.l$prop = sum.set.b.l$values/100
+ggplot(sum.set.b.l, 
+       aes(x = ind, y = prop)) + geom_bar(stat = "identity") +  ylim(0, 1) + 
+  ylab("Percentage") +  
+  geom_text(aes(label=round(prop, 2)), vjust=1.6, color="white", size=6.5) + theme_bw() +
+   theme(axis.text.x = element_text(angle = 90, size = 22), 
+        axis.title.x = element_blank(), 
+        legend.title = element_blank(), 
+        legend.position = "bottom", 
+        axis.title.y = element_text(size = 26), 
+        axis.text.y = element_text(size = 22), 
+        legend.text = element_text(size = 22), 
+        strip.text.x = element_text(size = 22))  +
+  ylab("Proportion")
+ 
+
+ # colSums(pb, na.rm = T)/(nrow(pb) - colSums(pb, na.rm = T))
+# colSums(pb.full, na.rm = T)/(nrow(pb.full) - colSums(pb.full, na.rm = T))
+```
+
+\newpage
+
+# A vs B
+
+## Proporzione risposte corrette: 
+
+```{r fig.cap="Proporzione risposte corrette tra i set"}
+al$set = "A"
+bl$set = "B"
+
+long = rbind(al,bl)
+long.full = rbind(al.full, bl.full)
+
+long$item = gsub("\\D", "", long$stim)
+long$type = 0
+
+long.full$item = gsub("\\D", "", long.full$stim)
+long.full$type = 0
+
+for (i in 1:nrow(long)) {
+  if ( grepl("logic", long$stim)[i] == T) {
+    long[i, "type"] = "logic"
+  } else {
+    long[i, "type"] = "visuo"
+  }
+}
+
+for (i in 1:nrow(long.full)) {
+  if ( grepl("logic", long.full$stim)[i] == T) {
+    long.full[i, "type"] = "logic"
+  } else {
+    long.full[i, "type"] = "visuo"
+  }
+}
+
+long$item = factor(long$item)
+long$label = paste0(long$type, 
+                   long$item)
+
+long$label = factor(long$label, 
+                    levels = c("visuo1", 
+                               "visuo11", 
+                               "visuo2", 
+                               "visuo12", 
+                               "visuo3", 
+                               "visuo13",
+                               "logic1", 
+                               "logic11", 
+                               "logic2", 
+                               "logic12", 
+                               "logic3", 
+                               "logic13", 
+                               "logic4", 
+                               "logic14"))
+
+length.data = data.frame(set = c("A", "B"), 
+                    val = c(nrow(setAc), nrow(setBc)))
+
+p.all = data.frame(table(long$label, long$set, long$dic))
+
+colnames(p.all) = c("stim", "set", "response", "freq")
+
+p.all = merge(p.all, length.data, 
+              by ="set")
+
+p.all$prop = p.all$freq/p.all$val
+p.all$response = factor(p.all$response, 
+                levels = c( "error", "correct", "NA"))
+p.all$response = gsub("error", "Wrong", p.all$response)
+p.all$response = gsub("correct", "Correct", p.all$response)
+p.all$response = factor(p.all$response, 
+                levels = c( "NA", "Wrong", "Correct"))
+
+col = RColorBrewer::brewer.pal(8, "Greys")[c(3,5,8)]
+
+ggplot(p.all, 
+       aes(x = stim, fill = response, y = prop)) +geom_bar(stat = "identity") +facet_grid(~set) + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, size = 22), 
+        axis.title.x = element_blank(), 
+        legend.title = element_blank(), 
+        legend.position = "bottom", 
+        axis.title.y = element_text(size = 26), 
+        axis.text.y = element_text(size = 22), 
+        legend.text = element_text(size = 22), 
+        strip.text.x = element_text(size = 22))  +
+  ylab("Proportion")  + 
+  scale_fill_manual(values = col) 
+
+
+```
+
+
+\newpage
+
+## Confronto accordo nei due blocchi
+
+```{r fig.cap="Accordo nei due blocchi"}
+sum.b.a = rbind(sum.set.a.l, 
+                sum.set.b.l)
+
+sum.b.a$values = round(sum.b.a$values, 2)
+ggplot(sum.b.a, 
+       aes(x = ind, y = values, fill = set)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + ylim(0, 100) + ylab("Percentage") +
+  geom_text(aes(label=values), vjust=1.6, color="white", size=3.5,  position = position_dodge(0.9)) 
+
+sum.b.a$prop = sum.b.a$values/100
+ggplot(sum.b.a, 
+       aes(x = ind, y = prop, fill = set)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + ylim(0, 1) +  
+ geom_text(aes(label=round(prop, 2)), vjust=1.6, color="white", size=6.5,  position = position_dodge(0.9))+ 
+  theme_bw() + scale_fill_manual(values = c(col[2], col[3])) +
+   theme(axis.text.x = element_text(angle = 90, size = 22), 
+        axis.title.x = element_blank(), 
+        legend.title = element_blank(), 
+        legend.position = "bottom", 
+        axis.title.y = element_text(size = 26), 
+        axis.text.y = element_text(size = 22), 
+        legend.text = element_text(size = 22), 
+        strip.text.x = element_text(size = 22))  +
+  ylab("Proportion") 
+
+
+```
+
+Grafico con i pallini 
+
+
+<!-- ```{r} -->
+<!-- p.sum.b.a = cbind(sum.b.a[grep("A", sum.b.a$set), ],  -->
+<!--                   sum.b.a[grep("B", sum.b.a$set),  ]) -->
+
+
+<!-- colnames(p.sum.b.a) = c("percA", "item", "set",  -->
+<!--                         "propA", "percB", "label", "setB", "propB") -->
+
+
+<!-- p.sum.b.a$label = ifelse(grepl("logic",  -->
+<!--                           p.sum.b.a$label) == TRUE,  -->
+<!--                     paste0("logic", gsub("\\D", "", p.sum.b.a$item)),  -->
+<!--                     paste0("visuo", gsub("\\D", "", p.sum.b.a$item))) -->
+
+
+
+<!-- p.sum.b.a$diff = with(p.sum.b.a,  -->
+<!--                       propB - propA) -->
+
+<!-- p.sum.b.a = p.sum.b.a[order(p.sum.b.a$diff), ] -->
+<!-- p.sum.b.a$label = factor(p.sum.b.a$label,  -->
+<!--                     i.a1$label) -->
+
+
+<!-- p.sum.b.a %>%  -->
+<!--   arrange(diff) %>%  -->
+<!--   mutate(label = factor(label, label)) -->
+<!-- #  -->
+<!-- #  -->
+<!-- # ggplot(p.sum.b.a) + -->
+<!-- #   geom_segment( aes(x=label, xend=label, y=propA,  -->
+<!-- #                     yend=propB), color="black") + -->
+<!-- #   geom_point( aes(x=label, y=propA, fill  = set), color="black", size=5 ) + -->
+<!-- #   geom_point( aes(x=label, y=propB), color="grey", size=5 ) + -->
+<!-- #   coord_flip()+ -->
+<!-- #   theme_bw() + -->
+<!-- #   theme(legend.position = "bottom") -->
+
+<!-- sum.b.a$color = ifelse(sum.b.a$set == "A",  -->
+<!--                        "black", "grey") -->
+<!-- sum.b.a = sum.b.a[order(sum.b.a$prop), ] -->
+<!-- sum.b.a$ind = as.character(sum.b.a$ind) -->
+<!-- sum.b.a$label = factor(sum.b.a$ind) -->
+
+
+<!-- ggplot(sum.b.a) +  -->
+<!--   geom_point(aes(x = label, y = prop,   -->
+<!--                  fill = set, color = set), size = 5) + ylim(0,1) +  -->
+<!--  theme_bw() + scale_color_manual(values = c("black", "grey"))  + -->
+<!--   ylab("Proportion") + -->
+<!--   theme(legend.position = "bottom",  -->
+<!--         legend.title = element_blank(),  -->
+<!--         axis.title.y = element_blank(),  -->
+<!--         axis.title.x = element_text(size = 26),  -->
+<!--         axis.text = element_text(size  = 22),  -->
+<!--         legend.text = element_text(size = 22))  +  coord_flip()  -->
+<!-- ``` -->
+
+
+## Accordo tra i blocchi
+
+Calcolato come accordo tra A e B e A1 e B1 sul dataset con $n = `r nrow(setAc)`$
+
+```{r}
+all = cbind(setAc, setBc[,-1])
+
+all = all[, c("sbj", 
+              "a_1", "b_visuo1", "a1_1", "b1_visuo1", 
+              "a_2", "b_visuo2", "a1_2", "b1_visuo2",
+              "a_3", "b_visuo3", "a1_3", "b1_visuo3",
+              "a_logic1", "b_logic1", "a1_logic1", "b1_logic1",
+              "a_logic2", "b_logic2", "a1_logic2", "b1_logic2", 
+              "a_logic3", "b_logic3", "a1_logic3", "b1_logic3", 
+              "a_logic4", "b_logic4", "a1_logic4", "b1_logic4")]
+
+pall = NULL
+# con questo ottengo solo un'info rispetto all'acordo irrepsetive della direzione
+
+for (i in seq(2,ncol(all), by = 2)) {
+  temp = all[,i] == all[, i+1]
+  pall = cbind(pall, temp)
+}
+
+pall = data.frame(pall)
+colnames(pall) = c("visuo1", 
+                               "visuo11", 
+                               "visuo2", 
+                               "visuo12", 
+                               "visuo3", 
+                               "visuo13",
+                               "logic1", 
+                               "logic11", 
+                               "logic2", 
+                               "logic12", 
+                               "logic3", 
+                               "logic13", 
+                               "logic4", 
+                               "logic14")
+
+d = round((colSums(pall, na.rm = T)/nrow(all))*100, 2)
+
+d = stack(d)
+d$prop = d$values/100
+ggplot(d, 
+       aes(x = ind, y = prop)) + geom_bar(stat = "identity")  + 
+  ylim(0, 1) + ylab("Proportion") + 
+  geom_text(aes(label=round(prop, 2)), vjust=1.6, color="white", size=6.5) + 
+  theme_bw() +  theme(axis.text.x = element_text(angle = 90, size = 22), 
+        axis.title.x = element_blank(), 
+        legend.title = element_blank(), 
+        legend.position = "bottom", 
+        axis.title.y = element_text(size = 26), 
+        axis.text.y = element_text(size = 22), 
+        legend.text = element_text(size = 22), 
+        strip.text.x = element_text(size = 22))  +
+  ylab("Proportion")
+
+
+#round((colSums(pall, na.rm = T)/nrow(all))*100, 2)
+```
+
+Grafico con i pallini 
+
+```{r}
+
+d.conf = d
+d.conf$label = as.integer(gsub("\\D", "", d.conf$ind))
+d.conf$temp =  as.integer(gsub("\\D", "", d.conf$ind))
+d.conf$label = ifelse(d.conf$label > 10, 
+                      "0", "1")
+d.conf$temp = ifelse(d.conf$temp > 10, 
+       d.conf$temp - 10, d.conf$temp)
+d.conf$item = paste0(gsub("[0-9]", "", d.conf$ind), d.conf$temp)
+
+
+ggplot(d.conf) + 
+  geom_point(aes(x = item, y = prop, color = label), size = 5) + ylim(0,1) + 
+ theme_bw() + scale_color_manual(values = c("black", "grey"))  +
+  ylab("Proportion") +
+  theme(legend.position = "bottom", 
+        legend.title = element_blank(), 
+        axis.title.y = element_blank(), 
+        axis.title.x = element_text(size = 26), 
+        axis.text = element_text(size  = 22), 
+        legend.text = element_text(size = 22))  +  coord_flip()
+```
+
+
+\newpage
+
+Calcolato sul data set dove vengono considerate solo le risposte intere delle persone con $n = `r nrow(setAc.full)`$: 
+
+```{r fig.cap="Accordo tra i blocchi"}
+all.full = cbind(setAc.full, 
+                 setBc.full[,-1])
+
+all.full = all.full[, c("sbj", 
+              "a_1", "b_visuo1", "a1_1", "b1_visuo1", 
+              "a_2", "b_visuo2", "a1_2", "b1_visuo2",
+              "a_3", "b_visuo3", "a1_3", "b1_visuo3",
+              "a_logic1", "b_logic1", "a1_logic1", "b1_logic1",
+              "a_logic2", "b_logic2", "a1_logic2", "b1_logic2", 
+              "a_logic3", "b_logic3", "a1_logic3", "b1_logic3", 
+              "a_logic4", "b_logic4", "a1_logic4", "b1_logic4")]
+
+pall.full = NULL
+# con questo ottengo solo un'info rispetto all'acordo irrepsetive della direzione
+
+for (i in seq(2,ncol(all.full), by = 2)) {
+  temp = all[,i] == all[, i+1]
+  pall.full = cbind(pall.full, temp)
+}
+
+pall.full = data.frame(pall.full)
+colnames(pall.full) = c("visuo1", 
+                               "visuo11", 
+                               "visuo2", 
+                               "visuo12", 
+                               "visuo3", 
+                               "visuo13",
+                               "logic1", 
+                               "logic11", 
+                               "logic2", 
+                               "logic12", 
+                               "logic3", 
+                               "logic13", 
+                               "logic4", 
+                               "logic14")
+
+
+A = round((colSums(pall.full, na.rm = T)/nrow(all.full))*100, 2)
+
+a = stack(A)
+
+ggplot(a, 
+       aes(x = ind, y = values, fill = ind)) + geom_bar(stat = "identity")  + ylim(0, 100) + ylab("Percentage") + xlab("Stimulus") + theme(legend.position = "none") +
+  geom_text(aes(label=values), vjust=1.6, color="white", size=3.5)
+
+```
+

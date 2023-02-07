@@ -1,0 +1,851 @@
+---
+title: "Dettaglio distrattori"
+author: "Ottavia"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    toc: yes
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, 
+                      fig.align = "center", 
+                      warning = F, 
+                      message = F)
+library(xtable)
+library(ggplot2)
+library(patchwork)
+library(psych)
+
+data = read.csv("data/data_recode.csv", 
+                header =T, 
+                sep = ",")
+# facciamo pulizia 
+data = data[data$data.accetto.non.accetto %in% 1, ]
+data = data[!data$data.DistributionChannel %in% "preview", ]
+data = data[!grepl("13/12", data$data.StartDate), ]
+
+# prendo solo i dati completi 
+
+d = data[data$data.Finished %in% 1, ]
+
+# rinomino i distrattori
+d.r = d[, -c(1:4)]
+
+for (i in 1:nrow(d.r)) {
+  for (j in 1:ncol(d.r)) {
+    if (is.na(d.r[i,j]) == T) {
+      d.r[i,j] = d.r[i,j]
+    } else if (d.r[i,j] == "correct") {
+      d.r[i,j] = d.r[i,j]
+    } else if (d.r[i, j] == "wp.copy.ic.flip") {
+      d.r[i, j] = "wp.copy.ic.flip"
+    } else if (grepl("ic.", d.r[i,j]) ==T) {
+      d.r[i,j] = "ic"
+    } else if ( grepl("r.", d.r[i,j])) {
+      d.r[i,j] = "r"
+    } else if (grepl("wp.", d.r[i,j])) {
+      d.r[i,j] = "wp"
+    }
+  }
+}
+
+```
+
+# I distrattori 
+
+## Descrittive
+
+Ho rinominato tutti i distrattori nelle loro macrocategorie (altrimenti le frequenze per ogni tipo di distrattore erano troppo basse): 
+
+- r.top, r.tleft, r.diag $\rightarrow$ r
+
+- wp.copy, wp.matrix $\rightarrow$ wp
+
+- d.union $\rightarrow$ d.union
+
+- ic.inc, ic.flip, ic.scale, ic.neg $\rightarrow$ ic
+
+Queste analisi sono fatte sul data set di dati interi.
+
+Questa è la distribuzione dei distrattori scelti tra i blocchi: 
+
+```{r}
+d.r.temp = d.r[,-1]
+d.r.l = stack(d.r.temp)
+d.r.l$ind = as.character(d.r.l$ind)
+d.r.l$set = gsub("_.*", "", d.r.l$ind)
+
+
+ggplot(d.r.l, 
+       aes(x = values)) + geom_bar(aes(y = (..count..)/sum(..count..))) + facet_wrap(~set) + scale_y_continuous(breaks=c(0,.25,.50),
+                       limits = c(0,.50)) +
+    labs(title = levels(d.r.l$ind),
+         y = "Proporzione", 
+         x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black", 
+                                     angle = 45),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")
+
+
+```
+
+
+Nella prossima sezione riporto un po' di grafici descrittivi. 
+
+Sulla base dei grafici ho fatto una selezione di stimoli su cui andare a fare analisi più approfondite (i.e., dimensione dell'effetto del $\chi^2$ per testare l'uniformità della distribuzione dei distrattori, $r = \sqrt{\chi^2/n}$) mentre ho calcolato la kappa di Cohen su tutti gli item (ultima sezione). 
+
+\newpage
+
+### Set A, grafici
+
+```{r}
+
+a = d.r[, c(grep("a_", colnames(d.r)), 
+            grep("a1_", colnames(d.r)))]
+
+a.vis = a[, !grepl("logic", colnames(a))]
+a.log = a[, grepl("logic", colnames(a))]
+
+a.vis.long = stack(a.vis)
+a.vis.long$ind = factor(a.vis.long$ind, 
+                         levels = c("a_1", "a1_1", 
+                                    "a_2", "a1_2", 
+                                    "a_3", "a1_3")  )
+g.a.vis = list()
+
+for (i in 1:length(levels(a.vis.long$ind))){
+  g.a.vis[[i]] <- ggplot(a.vis.long[a.vis.long$ind %in% levels(a.vis.long$ind)[i], ], 
+                         aes(values)) +
+    geom_bar(aes(y = (..count..)/sum(..count..)))  +
+    scale_x_discrete(drop = FALSE) +
+    # geom_text(aes(y = ((..count..)/sum(..count..)), label = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+    scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                       limits = c(0,1)) +
+    labs(title = levels(a.vis.long$ind)[i],
+         y = "Proporzione", 
+         x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black"),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+    geom_hline(yintercept=.75, linetype="dashed")
+}
+
+wrap_plots(g.a.vis, ncol = 2)
+
+a1_3 = a.vis$a1_3
+a1_3[a1_3 == "correct"] = NA
+
+
+# qui sarebbe interessante verderlo sull'item a1_3 
+
+a.log.long = stack(a.log)
+a.log.long$ind = factor(a.log.long$ind, 
+                        levels = c("a_logic1", "a1_logic1", 
+                                   "a_logic2", "a1_logic2", 
+                                   "a_logic3", "a1_logic3", 
+                                   "a_logic4", "a1_logic4")  )
+g.a.log = list()
+
+for (i in 1:length(levels(a.log.long$ind))){
+  g.a.log[[i]] <- ggplot(a.log.long[a.log.long$ind %in% levels(a.log.long$ind)[i], ], 
+                         aes(values)) +
+    geom_bar(aes(y = (..count..)/sum(..count..)))  +
+    scale_x_discrete(drop = FALSE) +
+    # geom_text(aes(y = ((..count..)/sum(..count..)), label = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+    scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                       limits = c(0,1)) +
+    labs(title = levels(a.log.long$ind)[i],
+         y = "Proporzione", 
+         x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black"),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+    geom_hline(yintercept=.75, linetype="dashed")
+}
+
+wrap_plots(g.a.log, ncol = 3)
+```
+
+### $\chi^2$ Set A
+
+```{r}
+a.vis.test = a.vis
+
+temp = NULL
+summary.vis.a = list()
+
+for (i in 1:ncol(a.vis.test)) {
+  temp = a.vis.test[, i]
+  temp[temp == "correct"] = NA
+  summary.vis.a[[i]]  = sqrt(chisq.test(table(temp))$statistic/sum(table(temp)))
+  names(summary.vis.a)[i] = colnames(a.vis.test)[i]
+}
+sum.vis.a = data.frame(stim = names(summary.vis.a), 
+                       val = round(unlist(summary.vis.a), 2))
+sum.vis.a$ergo = ifelse(sum.vis.a$val <.10, 
+                        "equidistribuiti", 
+                        ifelse(sum.vis.a$val >=.10 & sum.vis.a$val <.50, "medio-piccolo", "non-equi"))
+
+a.log.test = a.log
+
+temp = NULL
+summary.log.a = list()
+
+for (i in 1:ncol(a.log.test)) {
+  temp = a.log.test[, i]
+  temp[temp == "correct"] = NA
+  summary.log.a[[i]]  = sqrt(chisq.test(table(temp))$statistic/sum(table(temp)))
+  names(summary.log.a)[i] = colnames(a.log.test)[i]
+}
+sum.log.a = data.frame(stim = names(summary.log.a), 
+                       val = round(unlist(summary.log.a), 2))
+sum.log.a$ergo = ifelse(sum.log.a$val <.10, 
+                        "equidistribuiti", 
+                        ifelse(sum.log.a$val >=.10 & sum.log.a$val <.50, "medio-piccolo", "non-equi"))
+```
+
+```{r results='asis'}
+sum.vis.a.temp =  rbind(sum.vis.a, 
+                        c("",""), 
+                        c("", ""))
+sum.a = cbind(sum.vis.a.temp, sum.log.a)
+
+options(xtable.comment = FALSE)
+print(xtable(sum.a, caption = "Set A dimensione dell'effetto basata sul chi quadro"), 
+      include.rownames = F, 
+      scalebox=1.5, caption.placement = "top")
+```
+
+
+### Set B, grafici 
+
+```{r}
+b = d.r[, c(grep("b_", colnames(d.r)), 
+            grep("b1_", colnames(d.r)))]
+
+b.vis = b[, !grepl("logic", colnames(b))]
+b.log = b[, grepl("logic", colnames(b))]
+
+b.vis.long = stack(b.vis)
+b.vis.long$ind = factor(b.vis.long$ind, 
+                        levels = c("b_visuo1", "b1_visuo1", 
+                                   "b_visuo2", "b1_visuo2", 
+                                   "b_visuo3", "b1_visuo3")  )
+g.b.vis = list()
+
+for (i in 1:length(levels(b.vis.long$ind))){
+  g.b.vis[[i]] <- ggplot(b.vis.long[b.vis.long$ind %in% levels(b.vis.long$ind)[i], ], 
+                         aes(values)) +
+    geom_bar(aes(y = (..count..)/sum(..count..)))  +
+    scale_x_discrete(drop = FALSE) +
+    # geom_text(aes(y = ((..count..)/sum(..count..)), label = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+    scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                       limits = c(0,1)) +
+    labs(title = levels(b.vis.long$ind)[i],
+         y = "Proporzione", 
+         x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black"),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+    geom_hline(yintercept=.75, linetype="dashed")
+}
+
+wrap_plots(g.b.vis, ncol = 2)
+
+
+b.log.long = stack(b.log)
+b.log.long$ind = factor(b.log.long$ind, 
+                        levels = c("b_logic1", "b1_logic1", 
+                                   "b_logic2", "b1_logic2", 
+                                   "b_logic3", "b1_logic3", 
+                                   "b_logic4", "b1_logic4")  )
+g.b.log = list()
+
+for (i in 1:length(levels(b.log.long$ind))){
+  g.b.log[[i]] <- ggplot(b.log.long[b.log.long$ind %in% levels(b.log.long$ind)[i], ], 
+                         aes(values)) +
+    geom_bar(aes(y = (..count..)/sum(..count..)))  +
+    scale_x_discrete(drop = FALSE) +
+    # geom_text(aes(y = ((..count..)/sum(..count..)), label = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+    scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                       limits = c(0,1)) +
+    labs(title = levels(b.log.long$ind)[i],
+         y = "Proporzione", 
+         x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black"),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+    geom_hline(yintercept=.75, linetype="dashed")
+}
+
+wrap_plots(g.b.log, ncol = 3)
+```
+
+
+
+### $\chi^2$ Set B
+
+```{r}
+b.vis.test = b.vis[, -c(3, 4, 6)]
+
+temp = NULL
+summary.vis.b = list()
+
+for (i in 1:ncol(b.vis.test)) {
+  temp = b.vis.test[, i]
+  temp[temp == "correct"] = NA
+  summary.vis.b[[i]]  = sqrt(chisq.test(table(temp))$statistic/sum(table(temp)))
+  names(summary.vis.b)[i] = colnames(b.vis.test)[i]
+}
+sum.vis.b = data.frame(stim = names(summary.vis.b), 
+                       val = round(unlist(summary.vis.b), 2))
+sum.vis.b$ergo = ifelse(sum.vis.b$val <.10, 
+                        "equidistribuiti", 
+                        ifelse(sum.vis.b$val >=.10 & sum.vis.b$val <.50, "medio-piccolo", "non-equi"))
+
+b.log.test = b.log[, -8]
+
+temp = NULL
+summary.log.b = list()
+
+for (i in 1:ncol(b.log.test)) {
+  temp = b.log.test[, i]
+  temp[temp == "correct"] = NA
+  summary.log.b[[i]]  = sqrt(chisq.test(table(temp))$statistic/sum(table(temp)))
+  names(summary.log.b)[i] = colnames(b.log.test)[i]
+}
+sum.log.b = data.frame(stim = names(summary.log.b), 
+                       val = round(unlist(summary.log.b), 2))
+
+sum.log.b$ergo = ifelse(sum.log.b$val <.10, 
+                        "equidistribuiti", 
+                        ifelse(sum.log.b$val >=.10 & sum.log.b$val <.50, "medio-piccolo", "non-equi"))
+```
+
+```{r results='asis'}
+sum.vis.b.temp =  rbind(sum.vis.b, 
+                        c("",""), 
+                        c("", ""), 
+                        c("", ""),c("", ""))
+sum.b = cbind(sum.vis.b.temp, sum.log.b)
+
+options(xtable.comment = FALSE)
+print(xtable(sum.b, caption = "Set B dimensione dell'effetto basata sul chi quadro"), 
+      include.rownames = F, 
+      scalebox=1.5, caption.placement = "top")
+```
+
+
+\newpage
+
+# Confrono tra set (grafici)
+
+## A vs. B
+
+```{r}
+ab.vis.0 = d.r[, c(grep("a_", colnames(d.r)), 
+                   grep("b_visuo", colnames(d.r)))]
+vis.0.l =stack(ab.vis.0) 
+vis.0.l$ind = as.character(vis.0.l$ind)
+vis.0.l = vis.0.l[!grepl("a_logic", vis.0.l$ind), ]
+
+vis.0.l$ind = factor(vis.0.l$ind, 
+                     levels = c("a_1", "b_visuo1", 
+                                "a_2", "b_visuo2", 
+                                "a_3", "b_visuo3"))
+
+g.ab.vis = list()
+
+for (i in 1:length(levels(vis.0.l$ind))){
+  g.ab.vis[[i]] <- ggplot(vis.0.l[vis.0.l$ind %in% levels(vis.0.l$ind)[i], ], 
+                          aes(values)) +
+    geom_bar(aes(y = (..count..)/sum(..count..)))  +
+    scale_x_discrete(drop = FALSE) +
+    # geom_text(aes(y = ((..count..)/sum(..count..)), label = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+    scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                       limits = c(0,1)) +
+    labs(title = levels(vis.0.l$ind)[i],
+         y = "Proporzione", 
+         x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black"),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+    geom_hline(yintercept=.75, linetype="dashed")
+}
+
+wrap_plots(g.ab.vis, ncol = 2)
+
+```
+
+
+
+
+```{r}
+ab.log.0 = d.r[, c(grep("a_logic", colnames(d.r)), 
+                   grep("b_logic", colnames(d.r)))]
+log.0.l =stack(ab.log.0) 
+log.0.l$ind = factor(log.0.l$ind, 
+                     levels = c("a_logic1", "b_logic1", 
+                                "a_logic2", "b_logic2", 
+                                "a_logic3", "b_logic3", 
+                                "a_logic4", "b_logic4"))
+
+g.ab.log = list()
+
+for (i in 1:length(levels(log.0.l$ind))){
+  g.ab.log[[i]] <- ggplot(log.0.l[log.0.l$ind %in% levels(log.0.l$ind)[i], ], 
+                          aes(values)) +
+    geom_bar(aes(y = (..count..)/sum(..count..)))  +
+    scale_x_discrete(drop = FALSE) +
+    # geom_text(aes(y = ((..count..)/sum(..count..)), label = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+    scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                       limits = c(0,1)) +
+    labs(title = levels(log.0.l$ind)[i],
+         y = "Proporzione", 
+         x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black"),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+    geom_hline(yintercept=.75, linetype="dashed")
+}
+
+wrap_plots(g.ab.log, ncol = 3)
+```
+
+## A1 vs. B1
+
+```{r}
+ab1.vis.1 = d.r[, c(grep("a1_", colnames(d.r)), 
+                    grep("b1_visuo", colnames(d.r)))]
+vis.1.l =stack(ab1.vis.1) 
+vis.1.l$ind = as.character(vis.1.l$ind)
+vis.1.l = vis.1.l[!grepl("a1_logic", vis.1.l$ind), ]
+
+vis.1.l$ind = factor(vis.1.l$ind, 
+                     levels = c("a1_1", "b1_visuo1", 
+                                "a1_2", "b1_visuo2", 
+                                "a1_3", "b1_visuo3"))
+
+g.ab1.vis = list()
+
+for (i in 1:length(levels(vis.1.l$ind))){
+  g.ab1.vis[[i]] <- ggplot(vis.1.l[vis.1.l$ind %in% levels(vis.1.l$ind)[i], ], 
+                           aes(values)) +
+    geom_bar(aes(y = (..count..)/sum(..count..)))  +
+    scale_x_discrete(drop = FALSE) +
+    # geom_text(aes(y = ((..count..)/sum(..count..)), lab1el = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+    scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                       limits = c(0,1)) +
+    labs(title = levels(vis.1.l$ind)[i],
+          y = "Proporzione", 
+          x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black"),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+    geom_hline(yintercept=.75, linetype="dashed")
+}
+
+wrap_plots(g.ab1.vis, ncol = 2)
+
+
+ab1.log.1 = d.r[, c(grep("a1_logic", colnames(d.r)), 
+                    grep("b1_logic", colnames(d.r)))]
+log.1.l =stack(ab1.log.1) 
+log.1.l$ind = factor(log.1.l$ind, 
+                     levels = c("a1_logic1", "b1_logic1", 
+                                "a1_logic2", "b1_logic2", 
+                                "a1_logic3", "b1_logic3", 
+                                "a1_logic4", "b1_logic4"))
+
+g.ab1.log = list()
+
+for (i in 1:length(levels(log.1.l$ind))){
+  g.ab1.log[[i]] <- ggplot(log.1.l[log.1.l$ind %in% levels(log.1.l$ind)[i], ], 
+                           aes(values)) +
+    geom_bar(aes(y = (..count..)/sum(..count..)))  +
+    scale_x_discrete(drop = FALSE) +
+    # geom_text(aes(y = ((..count..)/sum(..count..)), lab1el = scales::percent(accuracy = .01, (..count..)/sum(..count..))), stat = "count", vjust = -0.25, size = 4) +
+    scale_y_continuous(breaks=c(0,.25,.50,.75,1.00),
+                       limits = c(0,1)) +
+    labs(title = levels(log.1.l$ind)[i],
+          y = "Proporzione", 
+          x = "Risposte")+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black"),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+    geom_hline(yintercept=.75, linetype="dashed")
+}
+
+wrap_plots(g.ab1.log, ncol = 3)
+```
+
+\newpage
+
+# Kappa 
+
+## Entro le matrici
+
+```{r results='asis'}
+a.vis.1 = a.vis[, c("a_1", "a1_1", 
+                  "a_2", "a1_2", 
+                  "a_3", "a1_3")]
+
+for (i in 1:ncol(a.vis.1)) {
+  a.vis.1[, i] = ifelse(a.vis.1[,i] == "correct", 
+                        1, 0)
+}
+cont.vis.ab = list()
+kappa.vis.ab = list()
+
+
+for (i in seq(1, ncol(a.vis.1), by = 2)) {
+  cont.vis.ab[[i]] = table(a.vis.1[,i], 
+                          a.vis.1[,i+1])
+  names(cont.vis.ab)[i] = colnames(a.vis.1)[i]
+  kappa.vis.ab[[i]] = cohen.kappa(cbind(a.vis.1[,i], a.vis.1[,i+1]))
+  names(kappa.vis.ab)[i] = colnames(a.vis.1)[i]
+}
+
+
+cont.vis.ab = cont.vis.ab[grep("a_", names(cont.vis.ab))]
+kappa.vis.ab = kappa.vis.ab[grep("a_", names(kappa.vis.ab))]
+names(kappa.vis.ab) = gsub("a", "visuo", names(kappa.vis.ab))
+sum.kappa.a.vis = data.frame(stim = names(kappa.vis.ab))
+
+for ( i in 1:nrow(sum.kappa.a.vis)) {
+  sum.kappa.a.vis[i, "kappa"] = round(kappa.vis.ab[[i]]$kappa, 2)
+}
+
+# a log ----
+
+a.log.1 = a.log[, c("a_logic1", "a1_logic1", 
+                    "a_logic2", "a1_logic2", 
+                    "a_logic3", "a1_logic3", 
+                    "a_logic4", "a1_logic4")]
+
+
+for (i in 1:ncol(a.log.1)) {
+  a.log.1[, i] = ifelse(a.log.1[,i] == "correct", 
+                        1, 0)
+}
+cont.log.a = list()
+kappa.log.a = list()
+
+for (i in seq(1, ncol(a.log.1), by = 2)) {
+  cont.log.a[[i]] = table(a.log.1[,i], 
+                          a.log.1[,i+1])
+  names(cont.log.a)[i] = colnames(a.log.1)[i]
+  kappa.log.a[[i]] = cohen.kappa(cbind(a.log.1[,i], a.log.1[,i+1]))
+  names(kappa.log.a)[i] = colnames(a.log.1)[i]
+}
+
+cont.log.a = cont.log.a[grep("a_", names(cont.log.a))]
+kappa.log.a = kappa.log.a[grep("a_", names(kappa.log.a))]
+
+names(kappa.log.a) = gsub("a_logic", "A-logic", names(kappa.log.a))
+sum.kappa.a.log = data.frame(stim = names(kappa.log.a))
+
+for ( i in 1:nrow(sum.kappa.a.log)) {
+  sum.kappa.a.log[i, "kappa"] = round(kappa.log.a[[i]]$kappa, 2)
+}
+
+
+# b vis ----
+
+b.vis.1 = b.vis[, c("b_visuo1", "b1_visuo1", 
+                    "b_visuo2", "b1_visuo2", 
+                    "b_visuo3", "b1_visuo3")]
+
+
+for (i in 1:ncol(b.vis.1)) {
+  b.vis.1[, i] = ifelse(b.vis.1[,i] == "correct", 
+                        1, 0)
+}
+cont.vis.b = list()
+kappa.vis.b = list()
+
+
+for (i in seq(1, ncol(b.vis.1), by = 2)) {
+  cont.vis.b[[i]] = table(b.vis.1[,i], 
+                          b.vis.1[,i+1])
+  names(cont.vis.b)[i] = colnames(b.vis.1)[i]
+  kappa.vis.b[[i]] = cohen.kappa(cbind(b.vis.1[,i], b.vis.1[,i+1]))
+  names(kappa.vis.b)[i] = colnames(b.vis.1)[i]
+}
+
+cont.vis.b = cont.vis.b[grep("b_", names(cont.vis.b))]
+kappa.vis.b = kappa.vis.b[grep("b_", names(kappa.vis.b))]
+
+sum.kappa.b.vis = data.frame(stim = names(kappa.vis.b))
+
+for ( i in 1:nrow(sum.kappa.b.vis)) {
+  sum.kappa.b.vis[i, "kappa"] = round(kappa.vis.b[[i]]$kappa, 2)
+}
+
+
+
+# b log ----
+
+b.log.1 = b.log[, c("b_logic1", "b1_logic1", 
+                    "b_logic2", "b1_logic2", 
+                    "b_logic3", "b1_logic3", 
+                    "b_logic4", "b1_logic4")]
+
+
+for (i in 1:ncol(b.log.1)) {
+  b.log.1[, i] = ifelse(b.log.1[,i] == "correct", 
+                        1, 0)
+}
+cont.log.b = list()
+kappa.log.b = list()
+
+
+for (i in seq(1, ncol(b.log.1), by = 2)) {
+  cont.log.b[[i]] = table(b.log.1[,i], 
+                          b.log.1[,i+1])
+  names(cont.log.b)[i] = colnames(b.log.1)[i]
+  kappa.log.b[[i]] = cohen.kappa(cbind(b.log.1[,i], b.log.1[,i+1]))
+  names(kappa.log.b)[i] = colnames(b.log.1)[i]
+}
+
+
+cont.log.b = cont.log.b[grep("b_", names(cont.log.b))]
+kappa.log.b = kappa.log.b[grep("b_", names(kappa.log.b))]
+sum.kappa.b.log = data.frame(stim = names(kappa.log.b))
+
+for ( i in 1:nrow(sum.kappa.b.log)) {
+  sum.kappa.b.log[i, "kappa"] = round(kappa.log.b[[i]]$kappa, 2)
+}
+
+sum.kappa.vis = cbind(sum.kappa.a.vis, sum.kappa.b.vis)
+
+print(xtable(sum.kappa.vis, 
+             caption = "Kappa matrici visuo ENTRO set"), 
+      include.rownames = F, 
+      scalebox=1.5, caption.placement = "top")
+
+sum.kappa.log = cbind(sum.kappa.a.log, sum.kappa.b.log)
+
+print(xtable(sum.kappa.log, 
+             caption = "Kappa matrici logiche ENTRO set"), 
+      include.rownames = F, 
+      scalebox=1.5, caption.placement = "top")
+
+```
+
+
+## Tra le matrici 
+
+```{r results='asis'}
+ab.vis.k = ab.vis.0[, c("a_1", "b_visuo1", 
+                                "a_2", "b_visuo2", 
+                                "a_3", "b_visuo3")]
+
+for (i in 1:ncol(ab.vis.k)) {
+  ab.vis.k[, i] = ifelse(ab.vis.k[,i] == "correct", 
+                        1, 0)
+}
+cont.vis.ab = list()
+kappa.vis.ab = list()
+
+
+for (i in seq(1, ncol(ab.vis.k), by = 2)) {
+  cont.vis.ab[[i]] = table(ab.vis.k[,i], 
+                          ab.vis.k[,i+1])
+  names(cont.vis.ab)[i] = colnames(ab.vis.k)[i]
+  kappa.vis.ab[[i]] = cohen.kappa(cbind(ab.vis.k[,i], ab.vis.k[,i+1]))
+  names(kappa.vis.ab)[i] = colnames(ab.vis.k)[i]
+}
+
+
+cont.vis.ab = cont.vis.ab[grep("a_", names(cont.vis.ab))]
+kappa.vis.ab = kappa.vis.ab[grep("a_", names(kappa.vis.ab))]
+names(kappa.vis.ab) = gsub("a", "visuo", names(kappa.vis.ab))
+sum.kappa.ab.vis = data.frame(stim = names(kappa.vis.ab))
+
+for ( i in 1:nrow(sum.kappa.ab.vis)) {
+  sum.kappa.ab.vis[i, "kappa"] = round(kappa.vis.ab[[i]]$kappa, 2)
+}
+
+# ab log ----
+
+ab.log.1 = ab.log.0[, c("a_logic1", "b_logic1", 
+                                "a_logic2", "b_logic2", 
+                                "a_logic3", "b_logic3", 
+                                "a_logic4", "b_logic4")]
+
+
+for (i in 1:ncol(ab.log.1)) {
+  ab.log.1[, i] = ifelse(ab.log.1[,i] == "correct", 
+                        1, 0)
+}
+cont.log.ab = list()
+kappa.log.ab = list()
+
+
+
+for (i in seq(1, ncol(ab.log.1), by = 2)) {
+  cont.log.ab[[i]] = table(ab.log.1[,i], 
+                          ab.log.1[,i+1])
+  names(cont.log.ab)[i] = colnames(ab.log.1)[i]
+  kappa.log.ab[[i]] = cohen.kappa(cbind(ab.log.1[,i], ab.log.1[,i+1]))
+  names(kappa.log.ab)[i] = colnames(ab.log.1)[i]
+}
+
+cont.log.ab = cont.log.ab[grep("a_", names(cont.log.ab))]
+kappa.log.ab = kappa.log.ab[grep("a_", names(kappa.log.ab))]
+names(kappa.log.ab) = gsub("a", "logic", names(kappa.log.ab))
+
+sum.kappa.ab.log = data.frame(stim = names(kappa.log.ab))
+
+for ( i in 1:nrow(sum.kappa.ab.log)) {
+  sum.kappa.ab.log[i, "kappa"] = round(kappa.log.ab[[i]]$kappa, 2)
+}
+
+# set A1 B1 ----
+
+ab.vis.k.1 = ab1.vis.1[, c("a1_1", "b1_visuo1", 
+                                "a1_2", "b1_visuo2", 
+                                "a1_3", "b1_visuo3")]
+
+for (i in 1:ncol(ab.vis.k.1)) {
+  ab.vis.k.1[, i] = ifelse(ab.vis.k.1[,i] == "correct", 
+                        1, 0)
+}
+cont.vis.ab.1 = list()
+kappa.vis.ab.1 = list()
+
+
+for (i in seq(1, ncol(ab.vis.k.1), by = 2)) {
+  cont.vis.ab.1[[i]] = table(ab.vis.k.1[,i], 
+                          ab.vis.k.1[,i+1])
+  names(cont.vis.ab.1)[i] = colnames(ab.vis.k.1)[i]
+  kappa.vis.ab.1[[i]] = cohen.kappa(cbind(ab.vis.k.1[,i], ab.vis.k.1[,i+1]))
+  names(kappa.vis.ab.1)[i] = colnames(ab.vis.k.1)[i]
+}
+
+
+cont.vis.ab.1 = cont.vis.ab.1[grep("a1_", names(cont.vis.ab.1))]
+kappa.vis.ab.1 = kappa.vis.ab.1[grep("a1_", names(kappa.vis.ab.1))]
+names(kappa.vis.ab.1) = gsub("a1", "visuo1", names(kappa.vis.ab.1))
+sum.kappa.ab.vis.1 = data.frame(stim = names(kappa.vis.ab.1))
+
+for ( i in 1:nrow(sum.kappa.ab.vis.1)) {
+  sum.kappa.ab.vis.1[i, "kappa"] = round(kappa.vis.ab.1[[i]]$kappa, 2)
+}
+
+ab.log.k.1 = ab1.log.1[, c("a1_logic1", "b1_logic1", 
+                                "a1_logic2", "b1_logic2", 
+                                "a1_logic3", "b1_logic3", 
+                                "a1_logic4", "b1_logic4")]
+
+for (i in 1:ncol(ab.log.k.1)) {
+  ab.log.k.1[, i] = ifelse(ab.log.k.1[,i] == "correct", 
+                        1, 0)
+}
+cont.log.ab.1 = list()
+kappa.log.ab.1 = list()
+
+
+for (i in seq(1, ncol(ab.log.k.1), by = 2)) {
+  cont.log.ab.1[[i]] = table(ab.log.k.1[,i], 
+                          ab.log.k.1[,i+1])
+  names(cont.log.ab.1)[i] = colnames(ab.log.k.1)[i]
+  kappa.log.ab.1[[i]] = cohen.kappa(cbind(ab.log.k.1[,i], ab.log.k.1[,i+1]))
+  names(kappa.log.ab.1)[i] = colnames(ab.log.k.1)[i]
+}
+
+
+cont.log.ab.1 = cont.log.ab.1[grep("a1_", names(cont.log.ab.1))]
+kappa.log.ab.1 = kappa.log.ab.1[grep("a1_", names(kappa.log.ab.1))]
+names(kappa.log.ab.1) = gsub("a1", "logic1", names(kappa.log.ab.1))
+sum.kappa.ab.log.1 = data.frame(stim = names(kappa.log.ab.1))
+
+for ( i in 1:nrow(sum.kappa.ab.log.1)) {
+  sum.kappa.ab.log.1[i, "kappa"] = round(kappa.log.ab.1[[i]]$kappa, 2)
+}
+
+sum.kappa.vis.1 = cbind(sum.kappa.ab.vis, sum.kappa.ab.vis.1)
+
+print(xtable(sum.kappa.vis.1, 
+             caption = "Kappa matrici visuo TRA set"), 
+      include.rownames = F, 
+      scalebox=1.5, caption.placement = "top")
+
+sum.kappa.log.1 = cbind(sum.kappa.ab.log, 
+                        sum.kappa.ab.log.1)
+
+print(xtable(sum.kappa.log.1, 
+             caption = "Kappa matrici logiche TRA set"), 
+      include.rownames = F, 
+      scalebox=1.5, caption.placement = "top")
+
+```
+
+

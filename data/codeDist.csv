@@ -1,0 +1,11 @@
+﻿,a1_logic3,a_logic3,a1_logic2,a_logic2,a1_logic1,a_logic1,a1_logic4,a_logic4,b_logic1,b1_logic1,b_logic4,b1_logic4,b_logic3,b1_logic3,b_logic2,b1_logic2,a1_1,a_1,a_2,a1_2,a_3,a1_3,b_visuo1,b1_visuo1,b_visuo2,b1_visuo2,b_visuo3,b1_visuo3
+1,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct,correct
+2,wp.copy,wp.matrix,wp.matrix,wp.matrix,wp.matrix,wp.matrix,wp.matrix,wp.matrix,d.union,d.union,d.union,d.union,r.diag,d.union,d.union,d.union,wp.matrix,wp.matrix,wp.matrix,d.union,wp.matrix,wp.matrix,d.union,d.union,d.union,d.union,d.union,d.union
+3,r.top,r.top,r.top,r.top,r.top,r.top,r.diag,r.diag,r.top,ic.inc,ic.scale,ic.scale,wp.matrix,ic.flip,ic.flip,ic.flip,r.left,r.top,r.top,r.diag,r.top,r.top,r.top,r.top,r.diag,ic.neg,r.top,r.top
+4,wp.matrix,d.union,d.union,d.union,d.union,d.union,d.union,d.union,ic.inc,r.top,r.left,r.left,,r.diag,r.left,r.left,d.union,d.union,d.union,ic.inc,d.union,d.union,ic.flip,ic.flip,ic.neg,r.diag,ic.neg,ic.neg
+5,r.left,r.left,r.left,r.left,r.diag,r.diag,r.left,r.left,wp.matrix,wp.copy,wp.copy,wp.copy,,wp.matrix,wp.matrix,wp.matrix,r.diag,r.left,r.left,r.left,r.left,r.diag,wp.matrix,wp.matrix,wp.matrix,wp.matrix,wp.matrix,wp.matrix
+6,ic.inc,ic.flip,ic.inc,ic.inc,ic.inc,ic.inc,ic.inc,ic.inc,,,,,,,,,ic.flip,ic.flip,ic.inc,wp.matrix,ic.inc,ic.flip,,,,,,
+7,d.union,wp.copy,wp.copy,wp.copy,wp.copy,wp.copy,wp.copy,wp.copy,,,,,,,,,wp.copy,wp.copy,wp.copy,wp.copy,wp.copy,wp.copy.ic.flip,,,,,,
+8,ic.flip,ic.inc,ic.flip,ic.flip,ic.flip,ic.flip,ic.scale,ic.scale,,,,,,,,,ic.neg,ic.neg,ic.neg,ic.neg,ic.flip,ic.inc,,,,,,
+9,,,,,,,,,,,,,d.union,,,,,,,,,,,,,,,
+10,,,,,,,,,,,,,ic.flip,,,,,,,,,,,,,,,

@@ -1,0 +1,774 @@
+---
+title: "summary"
+author: "Ottavia"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document: 
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, 
+                      fig.align = "center")
+
+library(ggplot2)
+library(psych)
+library(lubridate)
+# tutto il dataset 
+data = read.csv("data/raven2301NUM.csv", header = T, 
+                sep = ",")
+# 80 osservazioni
+head(data)
+# tolgo i due fenomeni che non hanno accettato 
+num.c =  sum(data$accetto.non.accetto %in% 2)
+d = data[data$accetto.non.accetto %in% 1, ]
+
+
+# tolgo anche le preview 
+num.p = sum(d$DistributionChannel %in% "preview")
+d = d[!d$DistributionChannel %in% "preview", ]
+
+# tolgo tutte le comiplazioni fatte il 13/12 
+num.13 = sum(grepl("13/12", d$StartDate))
+d = d[!grepl("13/12", d$StartDate), ]
+
+perc = .70
+perc1 = .95
+```
+
+\newpage
+
+# Descrittive 
+
+Totale di `r nrow(data)` soggetti. Sono stati tolti `r nrow(data) - nrow(d)` perché mancava il consenso ($n = `r num.c`$), perché preview ($n = `r num.p`$) o perché sono state fatte il 13 dicembre ($n = `r num.13`$)
+
+```{r fig.cap="Percentuali blocco di Pratica"}
+
+d1 = d[, c(6, 9, 34:37, 39:72)]
+d1$filter = 0 
+
+for (i in 1:(nrow(d1))) {
+  if (sum(is.na(d1[i, ]))/(ncol(d1)-3) > perc) { # 3 perché 3 colonne non fanno rif agli item
+    d1[i, "filter"] = "out"
+  } else {
+    d1[i, "filter"] = "in"
+  }
+}
+
+d.full = d[d$Finished %in% 1, c(6, 9, 34:37, 39:72)]
+
+d.full$filter = 0 
+
+
+
+```
+
+
+
+Dati completi `r table(d$Finished)[2]` (nel senso di dati portati completamente a termine).
+
+Tenendo uno sbarramento al `r perc*100`%, si tengono `r table(d1$filter)[1]` soggetti. 
+
+
+
+## Blocco di pratica
+
+```{r}
+
+d.full$sbj = paste0("s", 1:nrow(d.full))
+d2 = d1[d1$filter %in% "in", ]
+d2$sbj = paste0("s", 1:nrow(d2))
+d2 = d2[, c(ncol(d2), 1:(ncol(d2)-1))]
+
+d2$filter = NULL
+
+
+pratica = d2[, c(grep("sbj", colnames(d2)), 
+                 grep("Prat", colnames(d2)))]
+pratica.full = d.full[, c(grep("sbj", colnames(d.full)), 
+                 grep("Prat", colnames(d.full)))]
+
+prl = reshape(pratica, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(pratica)),
+              times = names(pratica)[-1],
+              timevar = "stim", v.names = "resp")
+
+prl.full = reshape(pratica.full, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(pratica)),
+              times = names(pratica)[-1],
+              timevar = "stim", v.names = "resp")
+
+
+# ggplot(prl, 
+#        aes(x = as.factor(stim), 
+#            fill = resp)) + geom_bar(stat = "count")
+p = data.frame(table(prl$stim, 
+      prl$resp))
+
+p.full = data.frame(table(prl.full$stim, 
+      prl.full$resp))
+
+
+p$dic = ifelse(p$Var2 == 1, 
+               "correct", "error")
+p$dic = factor(p$dic, 
+               levels = c("error", "correct"))
+ggplot(p, 
+       aes(x = Var1, fill = dic, y = Freq)) + 
+  geom_bar(stat = "identity")
+
+p.full$dic = ifelse(p.full$Var2 == 1, 
+               "correct", "error")
+p.full$dic = factor(p.full$dic, 
+               levels = c("error", "correct"))
+# ggplot(p.full, 
+#        aes(x = Var1, fill = dic, y = Freq)) + 
+#   geom_bar(stat = "identity")
+
+
+
+```
+
+Dettaglio sul distrattore (per fare un lavoro più approfondito serve più tempo per matchare le risposte codificate da qualtrics con le risposte date dai soggetti).
+
+```{r fig.cap="Distrattori blocco pratica"}
+ggplot(p, 
+       aes(x = Var1, fill = Var2, y = Freq)) + geom_bar(stat = "identity")
+```
+
+\newpage
+
+## SetA
+
+```{r fig.cap="Percentuale corrette SET A"}
+setA = d2[, c(grep("sbj", colnames(d2)), 
+              grep("a_", colnames(d2)), 
+              grep("a1_", colnames(d2)))]
+setA.full = d.full[, c(grep("sbj", colnames(d.full)), 
+              grep("a_", colnames(d.full)), 
+              grep("a1_", colnames(d.full)))]
+al = reshape(setA, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(setA)),
+              times = names(setA)[-1],
+              timevar = "stim", v.names = "resp")
+
+al.full = reshape(setA.full, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(setA)),
+              times = names(setA)[-1],
+              timevar = "stim", v.names = "resp")
+
+
+setB = d2[, c(grep("sbj", colnames(d2)),
+              grep("b_", colnames(d2)), 
+              grep("b1", colnames(d2)))]
+
+setB.full = d.full[, c(grep("sbj", colnames(d.full)),
+              grep("b_", colnames(d.full)), 
+              grep("b1", colnames(d.full)))]
+
+bl = reshape(setB, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(setB)),
+              times = names(setB)[-1],
+              timevar = "stim", v.names = "resp")
+bl.full = reshape(setB, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(setB.full)),
+              times = names(setB.full)[-1],
+              timevar = "stim", v.names = "resp")
+
+# creo una matrice solo con 1 e 0 per entrambi i set 
+setAc = setA
+for (i in 1:nrow(setAc)) {
+  for (j in 2:ncol(setAc)) {
+    if (is.na(setAc[i, j]) == T) {
+      setAc[i, j] = setAc[i, j] 
+    } else if (setAc[i, j] != 1) {
+      setAc[i, j] = 0
+    } else {
+      setAc[i, j] = 1
+    }
+  }
+}
+
+setAc.full = setA.full
+for (i in 1:nrow(setAc.full)) {
+  for (j in 2:ncol(setAc.full)) {
+    if (is.na(setAc.full[i, j]) == T) {
+      setAc.full[i, j] = setAc.full[i, j] 
+    } else if (setAc.full[i, j] != 1) {
+      setAc.full[i, j] = 0
+    } else {
+      setAc.full[i, j] = 1
+    }
+  }
+}
+
+setBc = setB
+for (i in 1:nrow(setBc)) {
+  for (j in 2:ncol(setBc)) {
+    if (is.na(setBc[i, j]) == T) {
+      setBc[i, j] = setBc[i, j] 
+    } else if (setBc[i, j] != 1) {
+      setBc[i, j] = 0
+    } else {
+      setBc[i, j] = 1
+    }
+  }
+}
+
+setBc.full = setB.full
+for (i in 1:nrow(setBc.full)) {
+  for (j in 2:ncol(setBc.full)) {
+    if (is.na(setBc.full[i, j]) == T) {
+      setBc.full[i, j] = setBc.full[i, j] 
+    } else if (setBc.full[i, j] != 1) {
+      setBc.full[i, j] = 0
+    } else {
+      setBc.full[i, j] = 1
+    }
+  }
+}
+
+
+al$set = "A"
+al$dic = ifelse(al$resp == 1, 
+                  "correct", "error")
+al.full$set = "A"
+al.full$dic = ifelse(al.full$resp == 1, 
+                  "correct", "error")
+
+
+bl$set = "B"
+bl$dic = ifelse(bl$resp == 1, 
+                  "correct", "error")
+
+bl.full$set = "B"
+bl.full$dic = ifelse(bl.full$resp == 1, 
+                  "correct", "error")
+
+long = rbind(al,bl)
+long.full = rbind(al.full, bl.full)
+
+long$item = gsub("\\D", "", long$stim)
+long$type = 0
+
+long.full$item = gsub("\\D", "", long.full$stim)
+long.full$type = 0
+
+for (i in 1:nrow(long)) {
+  if ( grepl("logic", long$stim)[i] == T) {
+    long[i, "type"] = "logic"
+  } else {
+    long[i, "type"] = "visuo"
+  }
+}
+
+for (i in 1:nrow(long.full)) {
+  if ( grepl("logic", long.full$stim)[i] == T) {
+    long.full[i, "type"] = "logic"
+  } else {
+    long.full[i, "type"] = "visuo"
+  }
+}
+
+
+long$dic = ifelse(long$resp == 1, 
+                  "correct", ifelse(is.na(long$resp), NA, "error"))
+
+long.full$dic = ifelse(long.full$resp == 1, 
+                  "correct", ifelse(is.na(long.full$resp), NA, "error"))
+
+
+long$dic = factor(long$dic, 
+                     levels = c("error", "correct"))
+
+long.full$dic = factor(long.full$dic, 
+                     levels = c("error", "correct"))
+
+
+long$tot = nrow(d2)
+long.full$tot = nrow(d.full)
+
+long.a = long[long$set %in% "A", ]
+
+p = data.frame(table(long.a$stim, long.a$dic))
+
+p$tot = nrow(d2)
+
+p$prop = p$Freq/p$tot
+
+
+
+ggplot(p, 
+       aes(x = Var1, fill = Var2, y = prop)) + geom_bar(stat = "identity")
+
+ggplot(long[long$set %in% "A", ], 
+       aes(x = stim, y = tot, 
+           col = dic, fill = dic)) + geom_bar(stat = "identity") + 
+  scale_x_discrete(limits = c("a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4")) + theme_bw() +theme(axis.text.x = element_text(angle = 90))
+
+
+
+# faccio la stessa cosa per il set B 
+
+```
+
+## Set B 
+
+```{r fig.cap="Percentuali corrette SET B"}
+ggplot(long[long$set %in% "B", ], 
+       aes(x = stim, y = tot, 
+           col = dic, fill = dic)) + geom_bar(stat = "identity") + 
+  scale_x_discrete(limits = c("b_visuo1", "b1_visuo1", 
+                              "b_visuo2", "b1_visuo2", 
+                              "b_visuo3", "b1_visuo3", 
+                              "b_logic1", "b1_logic1", 
+                              "b_logic2", "b1_logic2", 
+                              "b_logic3", "b1_logic3", 
+                              "b_logic4", "b1_logic4")) + theme_bw() +theme(axis.text.x = element_text(angle = 90))
+```
+
+\newpage
+
+# Accordo 
+
+Ho considerato diversi tipi di accordo: 
+
+1. tipo 1, accordo grezzo: semplicemente se le risposte sono uguali, NA esclusi 
+
+2. tipo 2, accordo sugli NA uguali: risposte uguali e considerando gli NA solo quando sono NA su entrambi gli item, viceversa sono NA
+
+3. tipo 3, accordo sugli NA: risposte uguali alle coppie di item e considerando gli NA nel modo seguente: 
+  
+    - NA su entrambe: accordo 
+  
+    - NA su una e risposta errata sull'altra: accordo 
+  
+    - NA su una e risposta corretta sull'altra: disaccordo
+    
+Ad esclusione del primo accordo, Accordo tipo 2 e 3 l'ho calcolato sui dati portati completamente a termine $n = `r nrow(d.full)`$
+
+## Set A
+
+### Accordo tipo 1
+
+Questo tipo di accordo è il più "grezzo", non viene considerata l'informazione da parte degli NA, ma solo delle risposte date
+
+```{r}
+setAc  = setAc[, c("sbj",
+                 "a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4")]
+
+# breve check na 
+na.check = apply(setAc[,-1],2,is.na)
+
+#colSums(na.check)
+
+# pA = data.frame(sbj = setAc$sbj, 
+#                 i1 = numeric(nrow(setAc)), 
+#                 i2 = numeric(nrow(setAc)), 
+#                 i3 = numeric(nrow(setAc)), 
+#                 il1 = numeric(nrow(setAc)), 
+#                 il2 = numeric(nrow(setAc)), 
+#                 il3= numeric(nrow(setAc)), 
+#                 il4 = numeric(nrow(setAc)))
+
+pa = NULL
+# con questo ottengo solo un'info rispetto all'acordo irrepsetive della direzione
+
+for (i in seq(2,ncol(setAc), by = 2)) {
+  temp = setAc[,i] == setAc[, i+1]
+  pa = cbind(pa, temp)
+}
+# restituisce NA quando almeno uno è NA 
+# tecnicamente, se entrambi sono NA c'è coerenza (e.g., la risposta non ha risposto a nessuno dei due)
+# se non ha risposto a uno e l'altro è sbagliato c'è accordo? per me si 
+# se ha lasciato in bianco una e risposto giusto all'altro per me non c'è accordo 
+
+pa = data.frame(pa)
+colnames(pa) = c("i1", "i2", "i3", "il1", "il2", "il3", "il4")
+# 
+# na.check = apply(pa,2,is.na)
+# 
+# colSums(na.check)
+
+(colSums(pa, na.rm = T)/nrow(pa))*100
+
+```
+
+### Accordo tipo 2
+
+Prendo i dati completi, ossia i dati portati interamente a termine dagli utenti. Questo non esclude che ci siano delle risposte mancanti. 
+
+In questo caso considero gli NA **SOLO** quando sono NA su entrambe le risposte. 
+
+```{r}
+setAc.full  = setAc.full[, c("sbj",
+                 "a_1", "a1_1", 
+                              "a_2", "a1_2", 
+                              "a_3", "a1_3", 
+                              "a_logic1", "a1_logic1", 
+                              "a_logic2", "a1_logic2", 
+                              "a_logic3", "a1_logic3", 
+                              "a_logic4", "a1_logic4")]
+pa2 = data.frame(matrix(nrow=nrow(setAc.full), 
+                        ncol = ncol(setAc.full)-1))
+
+
+for (i in 1:nrow(setAc.full)) {
+  for(j in seq(2, ncol(setAc.full), by = 2)) {
+    if (is.na(setAc.full[i, j]) & is.na(setAc.full[i, j + 1])) {
+      pa2[i, j] = 1
+    } else {
+      pa2[i, j] = setAc.full[i, j] == setAc.full[i, j+1]
+    }
+  }
+}
+  
+
+pa2 = pa2[, seq(2, ncol(setAc.full), by = 2)]
+colnames(pa2) = c("i1", "i2", "i3", "il1", "il2", "il3", "il4")
+
+(colSums(pa2, na.rm = T)/nrow(pa2))*100
+
+```
+
+### Accordo tipo 3 
+
+Considero accordo: 
+
+- risposte uguali su entrambi gli item (anche entrambi NA)
+
+- NA su una e risposta errata sulla seconda
+
+```{r}
+pa3 = data.frame(matrix(nrow=nrow(setAc.full), 
+                        ncol = ncol(setAc.full)-1))
+
+
+for (i in 1:nrow(setAc.full)) {
+  for(j in seq(2, ncol(setAc.full), by = 2)) {
+    if (is.na(setAc.full[i, j]) & is.na(setAc.full[i, j + 1])) {
+      pa3[i, j] = 1
+    } else if (is.na(setAc.full[i, j]) & setAc.full[i, j + 1] == 0 ) {
+       pa3[i, j] = 1
+    } else if (setAc.full[i, j]==0 & is.na(setAc.full[i, j + 1])) {
+      pa3[i, j] = 1
+    } else {
+      pa3[i, j] = setAc.full[i, j] == setAc.full[i, j+1]
+    }
+  }
+}
+  
+
+pa3 = pa3[, seq(2, ncol(setAc.full), by = 2)]
+colnames(pa3) = colnames(pa2)
+
+(colSums(pa3, na.rm = T)/nrow(pa3))*100
+
+```
+
+
+
+## Set B 
+
+
+### Accordo tipo 1
+
+Questo tipo di accordo è il più "grezzo", non viene considerata l'informazione da parte degli NA, ma solo delle risposte date
+
+```{r}
+setBc  = setBc[, c("sbj",
+                 "b_visuo1", "b1_visuo1", 
+                              "b_visuo2", "b1_visuo2", 
+                              "b_visuo3", "b1_visuo3", 
+                              "b_logic1", "b1_logic1", 
+                              "b_logic2", "b1_logic2", 
+                              "b_logic3", "b1_logic3", 
+                              "b_logic4", "b1_logic4")]
+
+# breve check na 
+na.check = apply(setBc[,-1],2,is.na)
+
+# colSums(na.check)
+
+# pA = data.frame(sbj = setAc$sbj, 
+#                 i1 = numeric(nrow(setAc)), 
+#                 i2 = numeric(nrow(setAc)), 
+#                 i3 = numeric(nrow(setAc)), 
+#                 il1 = numeric(nrow(setAc)), 
+#                 il2 = numeric(nrow(setAc)), 
+#                 il3= numeric(nrow(setAc)), 
+#                 il4 = numeric(nrow(setAc)))
+
+pb = NULL
+# con questo ottengo solo un'info rispetto all'acordo irrepsetive della direzione
+
+for (i in seq(2,ncol(setBc), by = 2)) {
+  temp = setBc[,i] == setBc[, i+1]
+  pb = cbind(pb, temp)
+}
+
+# restituisce NA quando almeno uno è NA 
+# tecnicamente, se entrambi sono NA c'è coerenza (e.g., la risposta non ha risposto a nessuno dei due)
+# se non ha risposto a uno e l'altro è sbagliato c'è accordo? per me si 
+# se ha lasciato in bianco una e risposto giusto all'altro per me non c'è accordo 
+
+pb = data.frame(pb)
+colnames(pb) = c("i1", "i2", "i3", "il1", "il2", "il3", "il4")
+# 
+# na.check = apply(pb,2,is.na)
+# 
+# colSums(na.check)
+
+(colSums(pb, na.rm = T)/nrow(pb))*100
+```
+
+
+
+### Accordo tipo 2
+
+In questo caso considero gli NA **SOLO** quando sono NA su entrambe le risposte. 
+
+```{r}
+setBc.full  = setBc.full[, c("sbj",
+                 "b_visuo1", "b1_visuo1", 
+                              "b_visuo2", "b1_visuo2", 
+                              "b_visuo3", "b1_visuo3", 
+                              "b_logic1", "b1_logic1", 
+                              "b_logic2", "b1_logic2", 
+                              "b_logic3", "b1_logic3", 
+                              "b_logic4", "b1_logic4")]
+
+pb2 = data.frame(matrix(nrow=nrow(setBc.full), 
+                        ncol = ncol(setBc.full)-1))
+
+
+for (i in 1:nrow(setBc.full)) {
+  for(j in seq(2, ncol(setBc.full), by = 2)) {
+    if (is.na(setBc.full[i, j]) & is.na(setBc.full[i, j + 1])) {
+      pb2[i, j] = 1
+    } else {
+      pb2[i, j] = setBc.full[i, j] == setBc.full[i, j+1]
+    }
+  }
+}
+  
+
+pb2 = pb2[, seq(2, ncol(setBc.full), by = 2)]
+colnames(pb2) = c("i1", "i2", "i3", "il1", "il2", "il3", "il4")
+
+(colSums(pb2, na.rm = T)/nrow(pb2))*100
+
+```
+
+
+
+### Accordo tipo 3 
+
+Considero accordo: 
+
+- risposte uguali su entrambi gli item (anche entrambi NA)
+
+- NA su una e risposta errata sulla seconda
+
+```{r}
+pb3 = data.frame(matrix(nrow=nrow(setBc.full), 
+                        ncol = ncol(setBc.full)-1))
+
+
+for (i in 1:nrow(setBc.full)) {
+  for(j in seq(2, ncol(setBc.full), by = 2)) {
+    if (is.na(setBc.full[i, j]) & is.na(setBc.full[i, j + 1])) {
+      pb3[i, j] = 1
+    } else if (is.na(setBc.full[i, j]) & setBc.full[i, j + 1] == 0 ) {
+       pb3[i, j] = 1
+    } else if (setBc.full[i, j]==0 & is.na(setBc.full[i, j + 1])) {
+      pb3[i, j] = 1
+    } else {
+      pb3[i, j] = setBc.full[i, j] == setBc.full[i, j+1]
+    }
+  }
+}
+  
+
+pb3 = pb3[, seq(2, ncol(setBc.full), by = 2)]
+colnames(pb3) = colnames(pb2)
+
+(colSums(pb3, na.rm = T)/nrow(pb3))*100
+
+```
+
+
+## Confronto Set A vs. Set B
+
+Tipo I:
+
+```{r}
+rbind((colSums(pa, na.rm = T)/nrow(pb))*100, 
+      (colSums(pb, na.rm = T)/nrow(pb))*100)
+```
+
+Tipo 2: 
+
+```{r}
+rbind((colSums(pa2, na.rm = T)/nrow(pb2))*100, 
+      (colSums(pb2, na.rm = T)/nrow(pb2))*100)
+```
+
+
+
+Tipo 3
+
+```{r}
+rbind((colSums(pa3, na.rm = T)/nrow(pb3))*100,
+      (colSums(pb3, na.rm = T)/nrow(pb3))*100)
+```
+
+
+
+## Set A-B
+
+I set A-B sono stati creati per essere gemelli. Questo vuol dire che deve esserci accordo tra, ad esempio, a_1, a1_1, b_1, b1_1. 
+
+In questo caso guardo solo l'accordo di tipo 1. 
+
+Qui riporto il confronto tra A e B, tenendo distinti i subset 0 e 1 (i.e., confronto a_1, b_visuo1, confronto a_1 e b1_visuo1 eccetera)
+
+```{r fig.cap="Percentuale corrette tra i blocchi"}
+
+# cerco di fare i grafici
+
+long$item = factor(long$item)
+long$label = paste0(long$type, 
+                   long$item)
+
+long$label = factor(long$label, 
+                    levels = c("visuo1", 
+                               "visuo11", 
+                               "visuo2", 
+                               "visuo12", 
+                               "visuo3", 
+                               "visuo13",
+                               "logic1", 
+                               "logic11", 
+                               "logic2", 
+                               "logic12", 
+                               "logic3", 
+                               "logic13", 
+                               "logic4", 
+                               "logic14"))
+
+
+ggplot(long, 
+       aes(x = label, y = tot, 
+           col = dic, fill = dic)) + geom_bar(stat = "identity") + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90)) + 
+  facet_grid(.~set)
+
+# ora devo creare un dataframe con il set A e il set B
+
+all = cbind(setAc, setBc[,-1])
+
+all = all[, c("sbj", 
+              "a_1", "b_visuo1", "a1_1", "b1_visuo1", 
+              "a_2", "b_visuo2", "a1_2", "b1_visuo2",
+              "a_3", "b_visuo3", "a1_3", "b1_visuo3",
+              "a_logic1", "b_logic1", "a1_logic1", "b1_logic1",
+              "a_logic2", "b_logic2", "a1_logic2", "b1_logic2", 
+              "a_logic3", "b_logic3", "a1_logic3", "b1_logic3", 
+              "a_logic4", "b_logic4", "a1_logic4", "b1_logic4")]
+
+pall = NULL
+# con questo ottengo solo un'info rispetto all'acordo irrepsetive della direzione
+
+for (i in seq(2,ncol(all), by = 2)) {
+  temp = all[,i] == all[, i+1]
+  pall = cbind(pall, temp)
+}
+
+pall = data.frame(pall)
+colnames(pall) = c("visuo1", 
+                               "visuo11", 
+                               "visuo2", 
+                               "visuo12", 
+                               "visuo3", 
+                               "visuo13",
+                               "logic1", 
+                               "logic11", 
+                               "logic2", 
+                               "logic12", 
+                               "logic3", 
+                               "logic13", 
+                               "logic4", 
+                               "logic14")
+
+
+```
+
+Accordo (tipo I) tra i blocchi. Questo confronto è fatto sul data set più piccolo e considerando le accoppiate a-b e a1-b1: 
+
+```{r}
+round((colSums(pall, na.rm = T)/nrow(all))*100, 2)
+
+```
+
+\newpage
+
+# Cose che mi hanno fatta insospettire 
+
+Come linea generale, ora vorrei fare i grafici delle frequenze per ogni item, perché se la maggior parte delle risposte non è la risposta corretta ma è un distrattore specifico, possono essere valide due possibili interpretazioni: (i) c'è effettivamente un distrattore che può prendrere l'attenzione delle persone, (ii) le opzioni di risposta sono state codificate male. 
+
+Per ora, l'item visuo spaziale 3 del set A ha l'indice di accordo è più basso di tutti. Guardando l'accordo tra SET è possibile che sia a1_3 il problema. Un altro item che mi fa insospettire è l'item visuo 1 del set A. 
+
+Mi guardo un poò il dettaglio delle risposte SUL DATASET DEL `r perc*100`% di risposte complete: 
+
+```{r fig.cap="Dettaglio distrattori A3 e A1.3"}
+a.3 = d2[, c("sbj", "a_3", "a1_3")]
+
+a.3l = reshape(a.3, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(a.3)),
+              times = names(a.3)[-1],
+              timevar = "stim", v.names = "resp")
+
+ggplot(a.3l, 
+       aes(x = as.factor(resp), fill = stim)) + 
+  geom_bar(stat = "count",  position=position_dodge()) + ylim(c(0, nrow(d2)))
+
+```
+
+
+Sempre visuo spaziale, sempre set A, stimolo 1: 
+
+```{r}
+a.1 = d2[, c("sbj", "a_1", "a1_1")]
+
+a.1l = reshape(a.1, idvar ="sbj",
+              direction = "long", varying = list(2:ncol(a.1)),
+              times = names(a.1)[-1],
+              timevar = "stim", v.names = "resp")
+
+ggplot(a.1l, 
+       aes(x = as.factor(resp), fill = stim)) + 
+  geom_bar(stat = "count",  position=position_dodge()) + ylim(c(0, nrow(d2)))
+
+```
+
+
+# Cose da fare 
+
+## Tempi di risposta 
+
+Pensavo di guardare le distribuzioni dei tempi di risposta in base alle risposte corrette date
+
+## Distrattori 

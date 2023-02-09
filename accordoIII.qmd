@@ -2,6 +2,7 @@
 title: "Accordo e Rasch Part III"
 format: 
   html: 
+    page-layout: full
     toc: true
     toc-location: left
     code-tools:
@@ -23,6 +24,7 @@ library(psych)
 library(TAM)
 library(knitr)
 library(patchwork)
+library(lavaan)
 
 
 ```
@@ -31,7 +33,7 @@ library(patchwork)
 
 ::: {.panel-tabset}
 
-## Distrattori vs corrette 
+## Distrattori vs corrette (tra Set)
 
 ```{r}
 #| fig-cap: Proporzione di opzioni di risposta scelte per ogni set, attraverso gli anni
@@ -49,6 +51,17 @@ data = data[!grepl("13/12", data$data.StartDate), ]
 # prendo solo i dati completi 
 
 d = data[data$data.Finished %in% 1, ]
+d.move = d
+d.move$temp.a1_1 = d$a_1
+d.move$temp.a_1 = d$a1_1
+d.move$a_1 = NULL
+d.move$a1_1 = NULL
+
+d.move$a_1 = d.move$temp.a_1 
+d.move$a1_1 =d.move$temp.a1_1
+
+d.move$temp.a1_1 = NULL
+d.move$temp.a_1 = NULL
 
 # rinomino i distrattori
 d.r = d[, -c(1:4)]
@@ -75,12 +88,15 @@ d.r.temp = d.r[,-1]
 d.r.l = stack(d.r.temp)
 d.r.l$ind = as.character(d.r.l$ind)
 d.r.l$set = gsub("_.*", "", d.r.l$ind)
+d.set = data.frame(table(d.r.l$values, d.r.l$set))
+d.set$tot = 245
+d.set$prop = d.set$Freq/d.set$tot
 
 
-ggplot(d.r.l, 
-       aes(x = values)) + geom_bar(aes(y = (..count..)/sum(..count..))) + facet_wrap(~set) + scale_y_continuous(breaks=c(0,.25,.50),
-                       limits = c(0,.50)) +
-    labs(title = levels(d.r.l$ind),
+ggplot(d.set, 
+       aes(x = Var1, y = prop)) + geom_bar(stat = "identity") + facet_wrap(~Var2) + scale_y_continuous(breaks=c(0,.25,.50, .75, 1.00),
+                       limits = c(0, 1.00)) +
+    labs(
          y = "Proporzione", 
          x = "Risposte")+
     theme_light()+
@@ -93,9 +109,60 @@ ggplot(d.r.l,
           axis.title.x = element_text(size=12),
           title = element_text(size=12))+
     geom_hline(yintercept=.25, linetype="dashed")+
-    geom_hline(yintercept=.50, linetype="dashed")
+    geom_hline(yintercept=.50, linetype="dashed")+
+      geom_hline(yintercept=.75, linetype="dashed")
 
 ```
+
+## Distrattori vs. corrette (quaterne)
+
+```{r}
+d.item = data.frame(table(d.r.l$values, d.r.l$ind))
+d.item$tot = 35
+colnames(d.item) = c("values", "ind", "freq", "tot")
+d.item$prop = d.item$freq/d.item$tot
+
+
+d.item$set = gsub("_.*", "", d.item$ind)
+d.item$set = gsub("[0-9]", "", d.item$set)
+d.item$couple = as.integer(gsub("\\D", "", d.item$ind))
+d.item$couple = ifelse(d.item$couple > 10, 
+                      "1", "0")
+d.item$type = 0
+d.item[-c(grep("logic", d.item$ind), 
+          grep("visuo", d.item$ind)), "type"] = paste0("visuo", 
+                                                        gsub(".*_", "", d.item[-c(grep("logic", d.item$ind), 
+          grep("visuo", d.item$ind)), "ind"]))
+
+d.item[c(grep("logic", d.item$ind), 
+          grep("visuo", d.item$ind)), "type"] = gsub(".*_", "", d.item[c(grep("logic", d.item$ind), 
+          grep("visuo", d.item$ind)), "ind"])
+d.item$new.var = paste(d.item$set, 
+                       d.item$couple, sep = ".")
+
+ggplot(d.item, 
+       aes(x = values, fill = new.var, y = prop)) + geom_bar(stat = "identity", position = position_dodge()) + facet_wrap(~type) + scale_y_continuous(breaks=c(0,.25,.50, .75, 1.00),
+                       limits = c(0,1.0)) +
+    labs(
+         y = "Proporzione", 
+         x = "Distrattori")+
+    theme_light()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black", 
+                                     angle = 45),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+  geom_hline(yintercept=.50, linetype="dashed")
+
+
+
+```
+
 
 ## Solo distrattori 
 
@@ -120,32 +187,46 @@ d.err1 = merge(d.err1, b,
                by = "item")
 d.err1$prop = d.err1$Freq/d.err1$tot
 
-d.err1[-c(grep("logic", d.err1$item), 
-          grep("visuo", d.err1$item)), "type"] = paste0("visuo", 
-                                                        gsub(".*_", "", d.err1[-c(grep("logic", d.err1$item), 
-          grep("visuo", d.err1$item)), "item"]))
-
-d.err1[c(grep("logic", d.err1$item), 
-          grep("visuo", d.err1$item)), "type"] = gsub(".*_", "", d.err1[c(grep("logic", d.err1$item), 
-          grep("visuo", d.err1$item)), "item"])
+d.err = d.err1
 
 
 
-g.dist = list()
+d.err$set = gsub("_.*", "", d.err$item)
+d.err$set = gsub("[0-9]", "", d.err$set)
+d.err$couple = as.integer(gsub("\\D", "", d.err$item))
+d.err$couple = ifelse(d.err$couple > 10, 
+                      "1", "0")
+d.err$type = 0
+d.err[-c(grep("logic", d.err$item), 
+          grep("visuo", d.err$item)), "type"] = paste0("visuo", 
+                                                        gsub(".*_", "", d.err[-c(grep("logic", d.err$item), 
+          grep("visuo", d.err$item)), "ite,"]))
 
-for (i in 1:length(unique(d.err1$type))) {
-g.dist[[i]] = ggplot(d.err1[d.err1$type %in% unique(d.err1$type)[i], ], 
-       aes(x = Var2, y = prop, fill = item)) + 
-    geom_bar(stat = "identity", 
-                                                        position = position_dodge()) + 
-  facet_wrap(~type) + theme_light() +
-  theme(axis.text.x = element_text(angle = 90), 
-        legend.position = "none", 
-        axis.title = element_blank())
-}
+d.err[c(grep("logic", d.err$item), 
+          grep("visuo", d.err$item)), "type"] = gsub(".*_", "", d.err[c(grep("logic", d.err$item), 
+          grep("visuo", d.err$item)), "item"])
+d.err$new.var = paste(d.err$set, 
+                       d.err$couple, sep = ".")
 
+ggplot(d.err, 
+       aes(x = Var2, fill = new.var, y = prop)) + geom_bar(stat = "identity", position = position_dodge()) + facet_wrap(~type) + scale_y_continuous(breaks=c(0,.25,.50, .75, 1.00),
+                       limits = c(0,1.0)) +
+    labs(
+         y = "Proporzione", 
+         x = "Distrattori")+
+    theme_light()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
+    theme(axis.text.y = element_text(size=12, color="black"),
+          axis.title.y = element_text(size=12),
+          axis.text.x = element_text(size=12, color="black", 
+                                     angle = 45),
+          axis.title.x = element_text(size=12),
+          title = element_text(size=12))+
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+  geom_hline(yintercept=.50, linetype="dashed")
 
-wrap_plots(g.dist, ncol = 3)
 
 ```
 

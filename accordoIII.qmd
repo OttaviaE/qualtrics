@@ -117,6 +117,8 @@ ggplot(d.set,
 ## Distrattori vs. corrette (quaterne)
 
 ```{r}
+mycol = RColorBrewer::brewer.pal(12, "Paired")[c(1:2, 5:6)]
+
 d.item = data.frame(table(d.r.l$values, d.r.l$ind))
 d.item$tot = 35
 colnames(d.item) = c("values", "ind", "freq", "tot")
@@ -141,7 +143,7 @@ d.item$new.var = paste(d.item$set,
                        d.item$couple, sep = ".")
 
 ggplot(d.item, 
-       aes(x = values, fill = new.var, y = prop)) + geom_bar(stat = "identity", position = position_dodge()) + facet_wrap(~type) + scale_y_continuous(breaks=c(0,.25,.50, .75, 1.00),
+       aes(x = values, fill = new.var, y = prop)) + geom_bar(colour = "black", stat = "identity", position = position_dodge()) + facet_wrap(~type) + scale_y_continuous(breaks=c(0,.25,.50, .75, 1.00),
                        limits = c(0,1.0)) +
     labs(
          y = "Proporzione", 
@@ -157,7 +159,7 @@ ggplot(d.item,
           title = element_text(size=12))+
     geom_hline(yintercept=.25, linetype="dashed")+
     geom_hline(yintercept=.50, linetype="dashed")+
-  geom_hline(yintercept=.50, linetype="dashed")
+  geom_hline(yintercept=.50, linetype="dashed") + scale_fill_manual(values = mycol)
 
 
 
@@ -200,7 +202,7 @@ d.err$type = 0
 d.err[-c(grep("logic", d.err$item), 
           grep("visuo", d.err$item)), "type"] = paste0("visuo", 
                                                         gsub(".*_", "", d.err[-c(grep("logic", d.err$item), 
-          grep("visuo", d.err$item)), "ite,"]))
+          grep("visuo", d.err$item)), "item"]))
 
 d.err[c(grep("logic", d.err$item), 
           grep("visuo", d.err$item)), "type"] = gsub(".*_", "", d.err[c(grep("logic", d.err$item), 
@@ -209,7 +211,7 @@ d.err$new.var = paste(d.err$set,
                        d.err$couple, sep = ".")
 
 ggplot(d.err, 
-       aes(x = Var2, fill = new.var, y = prop)) + geom_bar(stat = "identity", position = position_dodge()) + facet_wrap(~type) + scale_y_continuous(breaks=c(0,.25,.50, .75, 1.00),
+       aes(x = Var2, fill = new.var, y = prop)) + geom_bar(colour = "black", stat = "identity", position = position_dodge()) + facet_wrap(~type) + scale_y_continuous(breaks=c(0,.25,.50, .75, 1.00),
                        limits = c(0,1.0)) +
     labs(
          y = "Proporzione", 
@@ -225,7 +227,7 @@ ggplot(d.err,
           title = element_text(size=12))+
     geom_hline(yintercept=.25, linetype="dashed")+
     geom_hline(yintercept=.50, linetype="dashed")+
-  geom_hline(yintercept=.50, linetype="dashed")
+  geom_hline(yintercept=.50, linetype="dashed") +  scale_fill_manual(values = mycol)
 
 
 ```
@@ -406,7 +408,7 @@ acc.sum.l$accordo = factor(acc.sum.l$accordo,
 acc.sum.l$stimolo = factor(acc.sum.l$stimolo, 
                            levels = c("visuo1", 
                                       "visuo2", 
-                                      "viuso3", 
+                                      "visuo3", 
                                       "logic1", 
                                       "logic2", 
                                       "logic3", 
@@ -414,10 +416,17 @@ acc.sum.l$stimolo = factor(acc.sum.l$stimolo,
 
 
 ggplot(acc.sum.l, 
-       aes(x = stimolo, y = prop, fill = accordo)) + geom_bar(stat = "identity", 
+       aes(x = stimolo, y = prop, fill = accordo)) + geom_bar(colour = "black",
+                                                              stat = "identity", 
                                                               position = position_dodge()) + 
   scale_fill_brewer(palette = "Pastel1") + theme_light() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom") + ylim(0,1)  +
+    geom_hline(yintercept=.25, linetype="dashed")+
+    geom_hline(yintercept=.50, linetype="dashed")+
+  geom_hline(yintercept=.50, linetype="dashed")+
+  geom_hline(yintercept=.75, linetype="dashed") +
+  ylab("Proporzione") +
+  theme(axis.title.x = element_blank())
 
 ```
 

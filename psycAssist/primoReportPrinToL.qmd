@@ -1,5 +1,5 @@
 ---
-title: "Analisi preliminari PRIN2020"
+title: "Analisi preliminari PRIN2020 ToL"
 format: 
   html: 
     page-layout: full
@@ -43,7 +43,7 @@ rm(list = ls())
 library(ggplot2)
 library(dplyr)
 # importa il data set con le caratteriscctihe degli item -----
-guide = read.csv("D:/PRIN2020/qualtrics/skill_young.csv",
+guide = read.csv("D:/PRIN2020/qualtrics/psycAssist/guida_tol.csv",
                  header = T, sep = ",")
 # csv.files = list.files(pattern = ".csv")
 # 
@@ -55,7 +55,7 @@ guide = read.csv("D:/PRIN2020/qualtrics/skill_young.csv",
 # latest = gsub("-", "_", latest)
 
 # importa il csv con la data più recente -----
-data = read.csv("D:/PRIN2020/qualtrics/psycAssist/matdata_2023_02_23.csv", 
+data = read.csv("D:/PRIN2020/qualtrics/psycAssist/ToL/tol43_2023_02_24.csv", 
                 header = T, sep = ",")
 
 # fa il check per vedere che  non ci siano proev
@@ -70,7 +70,7 @@ data = data[!data$external_code %in% "UTENTE01", ]
 temp = data[, c("id", "id_question", "task_success")]
 
 
-temp$task_success = ifelse(temp$task_success == "True", 
+temp$task_success = ifelse(temp$task_success == "VERO", 
                            1, 0)
 wide.temp = reshape(temp, 
                     idvar = "id", 
@@ -279,37 +279,13 @@ Viene creata una divisione per gli item in diversi livelli di difficoltà a seco
 
 ```{r}
 d = data
-# PREPARAZIONE DISTRATTORI -----
-d$response_vector = gsub('[\"]', "", d$response_vector)
-d$distractors = gsub(".*_", "", d$response_vector)
-# d distractors contiene i dettagli su ogni distrattore -----
-d$distractors = gsub(".svg]", "", d$distractors)
-# macro_distractors contiene solo le macrocategorie di distrattori 
-d$macro_distractors = numeric(nrow(d))
 
-for (i in 1:nrow(d)) {
-  if(d[i, "distractors"] == "d.union" | d[i, "distractors"] == "diff1" | d[i, "distractors"] == "diff2" | d[i, "distractors"] == "diff") {
-    d[i, "macro_distractors"] = "D"
-  } else if (grepl("ic", d[i, "distractors"])  ==T) {
-    d[i, "macro_distractors"] = "IC"
-  } else if (grepl("wp", d[i, "distractors"])  ==T) {
-    d[i, "macro_distractors"] = "WP"
-  } else if (grepl("correct", d[i, "distractors"])  ==T){
-    d[i, "macro_distractors"] = "correct"
-  } else if (d[i, "distractors"] == "r.left" | d[i, "distractors"] == "r.top" | d[i, "distractors"] == "r.diag"){
-    d[i, "macro_distractors"] = "R"
-  }
-}
-# controlla che tutti siano stati ricodificati correttamente 
-# ATTENZIONE: FARE CORRERE SOLO UNA VOLTA ------
-d$id_question = d$id_question + 1
-guide$id_question = 1:40
 
 # UNISCE I DETTAGLI DEGLI ITEM AL DATASET (CREA D1) ----
 d1  =merge(d, guide, by = "id_question")
 # ricodifica le risposte in corrette ed errate 
-d1$task_success = ifelse(d1$task_success == "False",
-                         "wrong", "correct")
+d1$task_success = ifelse(d1$task_success == "FALSO",
+                         "error", "giusto")
 
 # calcola il numero di osservazioni per ogni soggetto -----
 freq_p = data.frame(table(d1$id))
@@ -317,8 +293,6 @@ colnames(freq_p) = c("id", "freq_p")
 # lo unisce a d1 --- 
 d1 = merge(d1, freq_p, by = "id")
 
-# SOLO PER ADESSO RICODIFICO NULL IN 0 ------
-d1[d1$anni_scolarita %in% "NULL", "anni_scolarita"] = 0
 
 # mi prendo la scolarità e calcolo il numero di bambini per ongi anno di scolarità 
 scol = d1[, c("id", "anni_scolarita")]
@@ -348,7 +322,7 @@ correct_p = merge(correct_p, freq_p, by = "id")
 # corrette per il numeor di osservazioni sul soggetto 
 correct_p$prop = correct_p$freq/correct_p$freq_p
 # prendo solo le risposte corrette ---
-only_correct_p = correct_p[correct_p$response %in% "correct", ]
+only_correct_p = correct_p[correct_p$response %in% "giusto", ]
 # riordino le proporsioni 
 only_correct_p = only_correct_p[order(only_correct_p$prop), ]
 only_correct_p$p_cres <- 1:nrow(only_correct_p)
@@ -367,7 +341,7 @@ colnames(correct_i) = c("id_question", "response", "Freq")
 correct_i = merge(correct_i, freq_i, by = "id_question")
 correct_i$prop = correct_i$Freq/correct_i$freq_i
 
-correct_i = correct_i[correct_i$response %in% "correct", ]
+correct_i = correct_i[correct_i$response %in% "giusto", ]
 
 cutoff = quantile(correct_i$prop)
 
@@ -443,6 +417,7 @@ colnames(item.quartili.sd.c)[ncol(item.quartili.sd.c)] = "sd.time.item"
 item.quartili.c = merge(item.quartili.mean.c, 
                         item.quartili.sd.c, by = c("anni_scolarita", "item.diff", "task_success"))
 
+
 ggplot(item.quartili.c, 
        aes(x = anni_scolarita, y = mean.time.item, group=task_success, color = task_success)) + 
   geom_point(size = 3)  + geom_line(aes(y = mean.time.item), 
@@ -486,7 +461,7 @@ ggplot(item.quartili,
 ## TR per difficoltà (corrette, sd)
 
 ```{r}
-d.correct = d1[d1$task_success %in% "correct", ]
+d.correct = d1[d1$task_success %in% "giusto", ]
 
 item.quartili.mean = aggregate(time.diff.item ~ anni_scolarita + item.diff, 
                                d.correct, 
@@ -538,7 +513,7 @@ correct_p = merge(correct_p, freq_p, by = "id")
 # corrette per il numeor di osservazioni sul soggetto 
 correct_p$prop = correct_p$freq/correct_p$freq_p
 # prendo solo le risposte corrette ---
-only_correct_p = correct_p[correct_p$response %in% "correct", ]
+only_correct_p = correct_p[correct_p$response %in% "giusto", ]
 # riordino le proporsioni 
 only_correct_p = only_correct_p[order(only_correct_p$prop), ]
 only_correct_p$p_cres <- 1:nrow(only_correct_p)
@@ -597,7 +572,7 @@ item_correct = merge(item_correct, freq_i,
 # poi plotta sulle scolarità 
 # tutto sugli ITEM 
 
-#item_correct_scol=item_correct_scol[item_correct_scol$response %in% "correct", ]
+#item_correct_scol=item_correct_scol[item_correct_scol$response %in% "giusto", ]
 item_correct_scol = merge(item_correct_scol, 
                           freq_i_as, 
                           by = c("id_question", "anni_scolarita"))
@@ -627,10 +602,10 @@ ggplot(item_correct_scol,
 ```{r}
 
 ggplot(item_correct_scol, 
-       aes(x = tipo, y = prop, fill = response)) + 
+       aes(x = nmosse, y = prop, fill = response)) + 
   geom_bar(stat = "identity", position = position_dodge()) + 
   facet_wrap(~anni_scolarita) + 
-  ggtitle("Proporzione risposte corrette per tipologie di matrice") + 
+  ggtitle("Proporzione risposte corrette per tipologie di problema") + 
   theme_light()
 ```
 
@@ -640,185 +615,13 @@ ggplot(item_correct_scol,
 ggplot(item_correct_scol, 
        aes(x = anni_scolarita, y = prop, fill = response)) + 
   geom_bar(stat = "identity", position = position_dodge()) + 
-  facet_wrap(~tipo*colore) + 
-  ggtitle("Proporzione risposte corrette per tipologie di matrice e colore") + 
+  facet_wrap(~nmosse*npercorsi) + 
+  ggtitle("Proporzione risposte corrette per tipologie di mosse (sopra) e percorsi (sotto)") + 
   theme_light()
 ```
 
 
-## Distrattori 
 
-
-::: {.panel-tabset}
-### Scolarità, tipo di matrice e colore 
-
-```{r}
-dist.scol = data.frame(table(d1$macro_distractors, d1$anni_scolarita, d1$tipo, d1$colore))
-colnames(dist.scol) = c("dist", "scol", "tipo", "colore", "freq")
-
-
-tot.dist.scol = aggregate(freq ~ scol + tipo + colore, dist.scol, sum)
-colnames(tot.dist.scol)[4] = "freq.tot"
-
-
-dist.scol = merge(dist.scol, tot.dist.scol, by = c("scol", "tipo", "colore"))
-dist.scol$prop = dist.scol$freq/dist.scol$freq.tot
-
-dist.scol = dist.scol[!is.nan(dist.scol$prop), ]
-
-
-ggplot(dist.scol, 
-       aes(x = scol, y = prop, fill = dist)) + 
-  geom_bar(stat="identity", position = position_dodge(), color = "black") + 
-  facet_wrap(~tipo*colore) + 
-  ggtitle("Proporzione per diversi distrattori") + theme_light()
-
-```
-
-### Scolarità, distrattori: Una cella
-
-```{r}
-dist.scol.item = data.frame(table(d1$macro_distractors, d1$anni_scolarita, d1$id_question))
-colnames(dist.scol.item) = c("dist", "scol", "id_question", "freq")
-
-
-tot.dist.scol.item = aggregate(freq ~ scol + id_question, dist.scol.item, sum)
-colnames(tot.dist.scol.item)[ncol(tot.dist.scol.item)] = "freq.tot" 
-
-dist.scol.item = merge(dist.scol.item, tot.dist.scol.item, 
-                       by = c("scol", "id_question"))
-
-dist.scol.item$prop = dist.scol.item$freq/dist.scol.item$freq.tot
-
-dist.scol.item = merge(dist.scol.item, 
-                       guide, by = "id_question")
-
-ggplot(dist.scol.item[dist.scol.item$tipo %in% "una.cella", ], 
-       aes(x = id_question, y = prop, fill = dist)) + 
-  geom_bar(stat="identity", position = position_dodge(), color = "black") + 
-  facet_wrap(~scol) + 
-  ggtitle("Proporzione per diversi distrattori: Una cella") + theme_light() +
-  xlab("Matrice") + ylab("Proporzione")
-
-
-```
-
-### Scolarità, distrattori: Due celle
-
-```{r}
-ggplot(dist.scol.item[dist.scol.item$tipo %in% "due.celle", ], 
-       aes(x = id_question, y = prop, fill = dist)) + 
-  geom_bar(stat="identity", position = position_dodge(), color = "black") + 
-  facet_wrap(~scol) + 
-  ggtitle("Proporzione per diversi distrattori: Due celle") + theme_light() +
-  xlab("Matrice") + ylab("Proporzione")
-```
-
-### Scolarità, distrattori: Tre celle
-
-```{r}
-ggplot(dist.scol.item[dist.scol.item$tipo %in% "tre.celle", ], 
-       aes(x = id_question, y = prop, fill = dist)) + 
-  geom_bar(stat="identity", position = position_dodge(), color = "black") + 
-  facet_wrap(~scol) + 
-  ggtitle("Proporzione per diversi distrattori: Tre celle") + theme_light() +
-  xlab("Matrice") + ylab("Proporzione")
-```
-
-
-
-:::
-
-# Modelli
-
-## Unidimensioalità 
-
-Per testare unidimensionalità, ho usato dei modelli di Analisi Fattorial Confermativa con il pacchetto `lavaan`. 
-
-Modello unidimensionale: 
-
-```{r}
-#| message: false
-library(lavaan)
-
-dl = d1[, c("id", "matrice", "tipo", "colore", 
-            "anni_scolarita", "gender", 
-            "task_success", "distractors", "macro_distractors",
-            "time.diff.item")]
-
-# isolo le variabili demografiche che ora non mi serbono 
-
-demo = dl[, c("id", "tipo", "colore", "matrice",
-              "anni_scolarita", "gender", 
-              "task_success", "distractors", "macro_distractors",
-              "time.diff.item")]
-demo = demo %>% 
-  distinct()
-
-d.temp = dl[, c("id", "task_success", "matrice")]
-
-d.temp$task_success = ifelse(d.temp$task_success == "correct", 
-                             1,
-                             0)
-
-wide = reshape(d.temp, 
-               direction = "wide", 
-               idvar = "id", 
-               timevar="matrice")
-colnames(wide) = gsub("task_success.", "", colnames(wide))
-
-# partiamo con la cfa
-# crea il modello 
-names = paste(colnames(wide)[-1], collapse = " + ")
-
-(form.mod = paste("latent =~", names))
-
-latent.model = cfa(form.mod, ordered = colnames(wide)[-1], 
-                    data = wide)
-a = summary(latent.model, fit.measures = T)
-
-```
-
-Fit: 
-
-```{r}
-round(a$fit[c("cfi", "tli", "rmsea")], 2)
-```
-
-## Rasch/1Pl
-
-Utilizzo il pacchetto `TAM`.
-
-Fit: 
-
-```{r}
-library(TAM)
-m.1pl = tam.mml(wide[,-1], verbose = F)
-m.1pl.fit = tam.modelfit(m.1pl, progress = F)
-
-m.1pl.fit$statlist
-
-```
-
-
-Fit degli item basato sul RMSD: 
-
-```{r}
-item.fit.1pl = IRT.itemfit(m.1pl)
-fit.item.summary = item.fit.1pl$RMSD
-
-for (i in 1:nrow(fit.item.summary)) {
-  if (fit.item.summary[i, "Group1"] < .10) {
-    fit.item.summary[i, "summary"] = "fit.ottimale"
-  } else if (fit.item.summary[i, "Group1"] >= .10 & fit.item.summary[i, "Group1"] < .15) {
-    fit.item.summary[i, "summary"] = "fit.okay"
-  } else {
-    fit.item.summary[i, "summary"] = "no.fit"
-  }
-}
-
-fit.item.summary[!fit.item.summary$summary %in% "fit.ottimale", ]
-```
 
 
 

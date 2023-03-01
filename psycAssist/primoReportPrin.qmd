@@ -474,10 +474,13 @@ ggplot(item.quartili.c,
 
 ```{r}
 # Tempi di risposta (solo corrette) per scolarita grafico -----
-
+item.quartili$item.diff = factor(item.quartili$item.diff, 
+                                 levels = c("molto.facili", 
+                                            "facili", "medio.diff", "diff"))
 ggplot(item.quartili, 
        aes(x = anni_scolarita, y = mean.time.item, 
-           group=item.diff, color = item.diff)) + 
+           group=item.diff, color = item.diff, 
+           linetype = item.diff)) + 
   geom_point(size = 5) + geom_line(aes(y = mean.time.item), 
                                    size= 1.2)  + theme_light() + ggtitle("Tempi di risposta (solo corrette) per scolarita")
 
@@ -1086,26 +1089,26 @@ ggplot(re.item,
 ```
 
 
-```{r}
-item.m1 = coef(m1)$matrice[,-1]
-item.m1$matrice = rownames(item.m1)
+<!-- ```{r} -->
+<!-- item.m1 = coef(m1)$matrice[,-1] -->
+<!-- item.m1$matrice = rownames(item.m1) -->
 
-item.m1l = reshape(item.m1,
-                   idvar = "matrice",
-                   times = (names(item.m1)[-ncol(item.m1)]),
-                   timevar = "scol",
-                   varying = list(names(item.m1)[-ncol(item.m1)]),
-                   direction = "long", v.names = "b")
+<!-- item.m1l = reshape(item.m1, -->
+<!--                    idvar = "matrice", -->
+<!--                    times = (names(item.m1)[-ncol(item.m1)]), -->
+<!--                    timevar = "scol", -->
+<!--                    varying = list(names(item.m1)[-ncol(item.m1)]), -->
+<!--                    direction = "long", v.names = "b") -->
 
 
-temp.theta = prob.m2[, c("matrice", "theta")]
-item.m1l = merge(temp.theta, item.m1l, by = "matrice" )
+<!-- temp.theta = prob.m2[, c("matrice", "theta")] -->
+<!-- item.m1l = merge(temp.theta, item.m1l, by = "matrice" ) -->
 
-item.m1l$prob = IRT(item.m1l$theta, -item.m1l$b)
+<!-- item.m1l$prob = IRT(item.m1l$theta, -item.m1l$b) -->
 
-ggplot(item.m1l,
-       aes(x = theta, y = prob,
-           group = matrice)) + geom_line() + theme_light()
-```
+<!-- ggplot(item.m1l, -->
+<!--        aes(x = theta, y = prob, -->
+<!--            group = matrice)) + geom_line() + theme_light() -->
+<!-- ``` -->
 
 

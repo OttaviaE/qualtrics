@@ -442,7 +442,8 @@ colnames(item.quartili.sd.c)[ncol(item.quartili.sd.c)] = "sd.time.item"
 
 item.quartili.c = merge(item.quartili.mean.c, 
                         item.quartili.sd.c, by = c("anni_scolarita", "item.diff", "task_success"))
-
+item.quartili.c$task_success = factor(item.quartili.c$task_success, 
+                                      levels = c("wrong", "correct"))
 ggplot(item.quartili.c, 
        aes(x = anni_scolarita, y = mean.time.item, group=task_success, color = task_success)) + 
   geom_point(size = 3)  + geom_line(aes(y = mean.time.item), 
@@ -606,7 +607,8 @@ item_correct_scol = merge(item_correct_scol,
                           guide, by = "id_question")
 
 item_correct_scol$prop = item_correct_scol$freq/item_correct_scol$freq_i_as
-
+item_correct_scol$response = factor(item_correct_scol$response, 
+                                      levels = c("wrong", "correct"))
 # Proporizione risposte corrette per scolarità -------
 ggplot(item_correct_scol, 
        aes(x = id_question, y = prop, fill = response)) + 
@@ -793,6 +795,44 @@ Fit:
 
 ```{r}
 library(TAM)
+IRT <- function(theta, a = 1, b = 0, c = 0,e = 1) {
+  y <- c + (e - c) * exp(a * (theta - b)) / (1 + exp(a * (theta - b)))
+  y[is.na(y)] = 1
+  return(y)
+}
+
+
+irt.icc = function(model) {
+  item_par = model$item
+  est_theta = seq(-4,4, length.out=1000)
+  item_prob = list()
+  if (any(grep("guess", colnames(item_par))) == F) {
+    for (i in 1:nrow(item_par)) {
+      item_prob[[i]] = data.frame(theta = est_theta)
+      item_prob[[i]]$it_p = IRT(item_prob[[i]]$theta, 
+                                b = item_par[i, "xsi.item"], 
+                                a = item_par[i, "B.Cat1.Dim1"])
+      item_prob[[i]]$item = item_par[i, "item"]
+    }
+  } else {
+    for (i in 1:nrow(item_par)) {
+      item_prob[[i]] = data.frame(theta = est_theta)
+      item_prob[[i]]$it_p = IRT(item_prob[[i]]$theta, 
+                                b = item_par[i, "AXsi_.Cat1"], 
+                                a = item_par[i, "B.Cat1.Dim1"], 
+                                c = item_par[i, "guess"])
+      item_prob[[i]]$item = item_par[i, "item"]
+    }
+  }
+  p = do.call("rbind", item_prob)
+  gp = ggplot(p, 
+              aes(x = theta, y = it_p, group = item, col =
+                    item)) + geom_line(lwd = 1)
+  object = list(prob.data = p, 
+                icc.graph = gp)
+  return(object)
+}
+
 m.1pl = tam.mml(wide[,-1], verbose = F)
 m.1pl.fit = tam.modelfit(m.1pl, progress = F)
 
@@ -820,5 +860,252 @@ for (i in 1:nrow(fit.item.summary)) {
 fit.item.summary[!fit.item.summary$summary %in% "fit.ottimale", ]
 ```
 
+
+::: {.panel-tabset}
+
+### ICC tutte insieme
+
+```{r}
+p = irt.icc(m.1pl)
+prob.m1 = p$prob.data
+colnames(prob.m1)[3] = "matrice"
+
+prob.m1 = merge(prob.m1, guide, by = "matrice")
+ggplot(prob.m1, 
+       aes(x = theta, y = it_p, group = matrice, 
+           col = matrice)) + geom_line( lwd = 1) +
+theme_light()
+
+```
+
+### ICC separate per colore 
+
+
+```{r}
+ggplot(prob.m1, 
+       aes(x = theta, y = it_p, group = matrice, 
+           col = matrice)) + geom_line(aes(linetype = colore), lwd = 1) +
+theme_light()
+
+```
+
+
+
+### ICC separate per colore e tipo
+
+```{r}
+
+prob.m1$col.tipo = paste(prob.m1$tipo, prob.m1$colore, sep = ".")
+prob.m1$col.tipo = factor(prob.m1$col.tipo, 
+                          levels = c("una.cella.si", 
+                                     "due.celle.no", 
+                                     "due.celle.si", 
+                                     "tre.celle.no", 
+                                     "tre.celle.si"))
+ggplot(prob.m1, 
+       aes(x = theta, y = it_p, group = matrice, 
+           col = col.tipo)) + geom_line(aes(linetype = col.tipo), lwd = 1) + theme_light()
+
+```
+
+::: {.panel-tabset}
+
+## 2PL 
+
+```{r}
+
+m.2pl = tam.mml.2pl(wide[,-1], irtmodel = "2PL", 
+                    verbose = F)
+m.2pl.fit = tam.modelfit(m.2pl, progress = F)
+
+m.2pl.fit$statlist
+
+```
+
+Model comparison: 
+```{r}
+IRT.compareModels(m.1pl, m.2pl)
+```
+
+
+
+Fit degli item basato sul RMSD: 
+
+```{r}
+item.fit.2pl = IRT.itemfit(m.2pl)
+fit.item.summary.2pl = item.fit.2pl$RMSD
+
+for (i in 1:nrow(fit.item.summary.2pl)) {
+  if (fit.item.summary.2pl[i, "Group1"] < .10) {
+    fit.item.summary.2pl[i, "summary"] = "fit.ottimale"
+  } else if (fit.item.summary.2pl[i, "Group1"] >= .10 & fit.item.summary.2pl[i, "Group1"] < .15) {
+    fit.item.summary.2pl[i, "summary"] = "fit.okay"
+  } else {
+    fit.item.summary.2pl[i, "summary"] = "no.fit"
+  }
+}
+
+fit.item.summary.2pl[!fit.item.summary.2pl$summary %in% "fit.ottimale", ]
+```
+
+
+::: {.panel-tabset}
+
+### ICC tutte insieme
+
+```{r}
+p = irt.icc(m.2pl)
+prob.m2 = p$prob.data
+colnames(prob.m2)[3] = "matrice"
+
+prob.m2 = merge(prob.m2, guide, by = "matrice")
+ggplot(prob.m2, 
+       aes(x = theta, y = it_p, group = matrice, 
+           col = matrice)) + geom_line( lwd = 1) +
+theme_light()
+
+```
+
+### ICC separate per colore 
+
+
+```{r}
+ggplot(prob.m2, 
+       aes(x = theta, y = it_p, group = matrice, 
+           col = matrice)) + geom_line(aes(linetype = colore), lwd = 1) +
+theme_light()
+
+```
+
+
+
+### ICC separate per colore e tipo
+
+```{r}
+
+prob.m2$col.tipo = paste(prob.m2$tipo, prob.m2$colore, sep = ".")
+prob.m2$col.tipo = factor(prob.m2$col.tipo, 
+                          levels = c("una.cella.si", 
+                                     "due.celle.no", 
+                                     "due.celle.si", 
+                                     "tre.celle.no", 
+                                     "tre.celle.si"))
+ggplot(prob.m2, 
+       aes(x = theta, y = it_p, group = matrice, 
+           col = col.tipo)) + geom_line(aes(linetype = col.tipo), lwd = 1) + theme_light()
+
+```
+
+::: {.panel-tabset}
+
+## GLMM
+
+Utilizzo questi modelli per andare a vedre un possibile Differential Item Functioning a seconda del livello di scolarità. 
+
+Dato il modello di Rasch/1PL: 
+
+$$P(x_{ps} = 1|\theta_p, b_s) = \frac{exp(\theta_p -b_s)}{1+ exp(\theta_p - b_s)}$$
+si può dimostrare che è sostanzialmente equivalente all'inverso del *logit* (i.e., la link function usata nei generalized linear model per mettere in contatto la combinazione lineare dei predittori $\eta_{ps}$ con la probabilità di rispondere correttamente $\mu_{ps}$): 
+
+$$logit^{-1} = \mu_{ps} = \frac{\eta_{ps}}{1 + \eta_{ps}}$$
+
+Se in $\eta_{ps}$ si considerano le caratteristiche delle persone e degli item ($\eta_{ps} = \theta_p + b_s$) si otttiene una parametrizzazione di tipo Rasch più "rilassata" (perché di fatto non è il modello di Rasch). Tuttavia, le stime che in Rasch sarebbero di difficoltà dell'item, vanno lette in termini di **facilità dell'item** $\rightarrow$ più è alto il valore di $b$, più l'item + facile **maggiore** è la probabilità di risposta corretta. 
+
+Confronto due modelli. Il modello nullo: 
+
+```{r eval=F, echo = T}
+
+m0 = glmer(task_success ~ 0+ anni_scolarita + (1|id) +
+             (1|matrice), 
+           data = dl, 
+           family = "binomial")
+```
+
+e il modello dove "libero" la varianza degli item a seconda della scolarità: 
+
+```{r eval=F, echo = T}
+m1 = glmer(task_success ~ 0+ anni_scolarita + (1|id) +
+             ( 0+ anni_scolarita|matrice), 
+           data = dl, 
+           family = "binomial", 
+           glmerControl(optimizer = "bobyqa", 
+                        calc.derivs = FALSE))
+
+```
+
+Per scegliere il migliore (i.e., per capire se liberare la varianza sugli item a seconda della scolarità è supportao dai dati ed ha quindi senso) procedo con model comparison
+
+```{r}
+library(lme4)
+dl$task_success = ifelse(dl$task_success == "correct", 
+                         1, 0)
+
+m0 = glmer(task_success ~ 0+ anni_scolarita + (1|id) +
+             (1|matrice), 
+           data = dl, 
+           family = "binomial")
+
+
+
+# non mi fido molto, meglio aspettare più dati 
+m1 = glmer(task_success ~ 0+ anni_scolarita + (1|id) +
+             ( 0+ anni_scolarita|matrice), 
+           data = dl, 
+           family = "binomial", 
+           glmerControl(optimizer = "bobyqa", 
+                        calc.derivs = FALSE))
+
+
+
+anova(m1, m0)
+
+
+```
+
+
+```{r}
+m1.re = as.data.frame(ranef(m1, condVar = T))
+re.item = m1.re[grep("young", m1.re$grp), ]
+
+ggplot(re.item,
+       aes(x = condval, y = grp, 
+           color = grp)) + geom_point() + 
+  facet_wrap(~term) + theme_light()
+
+```
+
+
+```{r}
+m1.re = as.data.frame(ranef(m1, condVar = T))
+re.item = m1.re[grep("young", m1.re$grp), ]
+
+ggplot(re.item,
+       aes(x = condval, y = grp, 
+           color = term)) + geom_point(size = 3) + theme_light()
+
+```
+
+
+```{r}
+item.m1 = coef(m1)$matrice[,-1]
+item.m1$matrice = rownames(item.m1)
+
+item.m1l = reshape(item.m1,
+                   idvar = "matrice",
+                   times = (names(item.m1)[-ncol(item.m1)]),
+                   timevar = "scol",
+                   varying = list(names(item.m1)[-ncol(item.m1)]),
+                   direction = "long", v.names = "b")
+
+
+temp.theta = prob.m2[, c("matrice", "theta")]
+item.m1l = merge(temp.theta, item.m1l, by = "matrice" )
+
+item.m1l$prob = IRT(item.m1l$theta, -item.m1l$b)
+
+ggplot(item.m1l,
+       aes(x = theta, y = prob,
+           group = matrice)) + geom_line() + theme_light()
+```
 
 

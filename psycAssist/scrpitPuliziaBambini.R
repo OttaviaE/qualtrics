@@ -509,3 +509,31 @@ ggplot(dist.scol,
   geom_bar(stat="identity", position = position_dodge(), color = "black") + 
   facet_wrap(~tipo*colore) + 
   ggtitle("Proporzione per diversi distrattori") + theme_light()
+
+
+# provo a isolare i bambini di don bosco 
+# hanno external code pedy 
+# codifica scuola ------
+small = d1
+
+
+for (i in 1:nrow(small)){
+  if (grepl("PEDY", small[i, "external_code"]) == T) {
+    small[i, "school"] = "don.bosco"
+  } else if (grepl("PEDX", small[i, "external_code"])) {
+    small[i, "school"] = "don.milani"
+  } else {
+    small[i, "school"] = paste("città", small[i,"city"], sep = " ")
+  }
+}
+table(small$school)
+small[small$school %in% "scuola.bosco", "external_code"]
+
+ggplot(small, 
+       aes(x = as.factor(school), y = total_score, 
+           color = anni_scolarita)) + geom_boxplot(size = 1.1) + 
+  theme_light() + 
+  theme(legend.position = "bottom") + xlab("") +
+  ylab("Score accuratezze") + 
+  ggtitle("Distribuzione score accuratezze per città") + 
+  theme(axis.text.x = element_text(angle = 90))

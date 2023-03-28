@@ -184,7 +184,7 @@ data = merge(data, wide.small, by = "id")
 
 # Introduzione 
 
-In questo file si trova un primo report sui dati degli adulti che hanno compilato matriks. Il file usato il `r Sys.Date()` è `r file`. SOno presenti le orsservazioni su `r length(unique(data$id))` soggetti. 
+In questo file si trova un primo report sui dati degli adulti che hanno compilato matriks. Il file usato il `r Sys.Date()` è `r file`. Sono presenti le orsservazioni su `r length(unique(data$id))` soggetti. 
 
 
 Ho ricodificato le età sulla base delle generazioni: 
@@ -633,7 +633,7 @@ ggplot(sbj_time_gender_generation,
 ```
 
 
-## enere, generazione, tempi di risposta (SD)
+## Genere, generazione, tempi di risposta (SD)
 
 
 ```{r}
@@ -851,9 +851,9 @@ prop_item$item.diff = ifelse(item_prob$correct <= cutoff[2],
                              ifelse(item_prob$correct > cutoff[3] &  item_prob$correct <= cutoff[4], 
                                     "facili", "molto.facile")))
 
-prop_item %>% 
-  count(item.diff) %>% 
-  kable(align="c")
+temp.item = prop_item %>% 
+  count(item.diff) 
+
 
 
 colnames(prop_item)[2] = "prop.tot"
@@ -866,12 +866,19 @@ item_char_scol$item.diff = factor(item_char_scol$item.diff,
                                              "facili", 
                                              "difficile", "molto.difficile"))
 
+
+temp.item$item.diff = factor(temp.item$item.diff, 
+                             levels = levels(item_char_scol$item.diff))
+
+temp.item[order(temp.item$item.diff), ] %>% 
+  kable(align="c")
+
 item_char_gen = merge(item_char_gen, prop_item)
 
 data = merge(data, prop_item)
 ```
 
-A livello generale si ha questa situazione ripsetto ai tempi di risposta: 
+A livello generale si ha questa situazione rispetto ai tempi di risposta: 
 
 
 ::: {.columns}
@@ -945,7 +952,7 @@ ggplot(time_details_gen,
 
 ## Differenza tempi di risposta 
 
-Calcolo la differenza nei tempi di risposta tra i livelli estremi delle generazioni, ossia (per il momento tra old.gen e gen.z). La differenza è calcolata tra old gen e gen z, per cu valori positivi indicano che old generation è più lenta della gen.z
+Calcolo la differenza nei tempi di risposta tra i livelli estremi delle generazioni, ossia (per il momento tra old.gen e gen.z). La differenza è calcolata tra old gen e gen z, per cui valori positivi indicano che old generation è più lenta della gen.z
 
 ::: {.panel-tabset}
 
@@ -1131,272 +1138,272 @@ ggplot(item_prob_gen[item_prob_gen$new.gen %in% "gen.z", ],
 :::
 
 
-## Differenza tempi di risposta 
+<!-- ## Differenza tempi di risposta  -->
 
-Calcolo la differenza nei tempi di risposta tra i livelli estremi della scolairtà (i.e., superiore-primaria).
+<!-- Calcolo la differenza nei tempi di risposta tra i livelli estremi della scolairtà (i.e., superiore-primaria). -->
 
-::: {.panel-tabset}
+<!-- ::: {.panel-tabset} -->
 
-## Differenza RT e item difficulty 
+<!-- ## Differenza RT e item difficulty  -->
 
 
-```{r}
-prova = item_char_scol[!item_char_scol$scol %in% "secondaria", ]
-prova$difference = 0 
+<!-- ```{r} -->
+<!-- prova = item_char_scol[!item_char_scol$scol %in% "secondaria", ] -->
+<!-- prova$difference = 0  -->
 
-for (i in 2:nrow(prova)) {
-  prova[i-1, "difference"] = prova[i, "time.diff.item"] - prova[i-1, "time.diff.item"]
-}
-prova.1 = prova[prova$scol %in% "primaria", ]
+<!-- for (i in 2:nrow(prova)) { -->
+<!--   prova[i-1, "difference"] = prova[i, "time.diff.item"] - prova[i-1, "time.diff.item"] -->
+<!-- } -->
+<!-- prova.1 = prova[prova$scol %in% "primaria", ] -->
 
-prova.details = prova.1 %>% 
-  group_by(item.diff) %>% 
-  summarise(mean_difference = mean(difference), sd = sd(difference))
+<!-- prova.details = prova.1 %>%  -->
+<!--   group_by(item.diff) %>%  -->
+<!--   summarise(mean_difference = mean(difference), sd = sd(difference)) -->
 
-prova.details$item.diff = factor(prova.details$item.diff, 
-                                 levels = c("molto.difficile", 
-                                            "difficile", 
-                                            "facili", 
-                                            "molto.facile"))
+<!-- prova.details$item.diff = factor(prova.details$item.diff,  -->
+<!--                                  levels = c("molto.difficile",  -->
+<!--                                             "difficile",  -->
+<!--                                             "facili",  -->
+<!--                                             "molto.facile")) -->
 
-ggplot(prova.details, 
-       aes(x = item.diff, y = mean_difference)) + 
-  geom_point() + geom_errorbar(aes(x = item.diff,
-                                   ymin=mean_difference-sd, 
-                                   ymax = mean_difference + sd), 
-                               width= .2) + theme_light()
-```
+<!-- ggplot(prova.details,  -->
+<!--        aes(x = item.diff, y = mean_difference)) +  -->
+<!--   geom_point() + geom_errorbar(aes(x = item.diff, -->
+<!--                                    ymin=mean_difference-sd,  -->
+<!--                                    ymax = mean_difference + sd),  -->
+<!--                                width= .2) + theme_light() -->
+<!-- ``` -->
 
 
-## Differenza RT, item difficulty e genere
+<!-- ## Differenza RT, item difficulty e genere -->
 
-```{r}
-gender_difference = data %>% 
-  group_by(scol, item.diff, gender) %>% 
-  summarise(mean_time = mean(time.diff.item), 
-            sd = sd(time.diff.item))
-# tiro fuori la secondaria
+<!-- ```{r} -->
+<!-- gender_difference = data %>%  -->
+<!--   group_by(scol, item.diff, gender) %>%  -->
+<!--   summarise(mean_time = mean(time.diff.item),  -->
+<!--             sd = sd(time.diff.item)) -->
+<!-- # tiro fuori la secondaria -->
 
-gender_difference = gender_difference[!gender_difference$scol %in% "secondaria", ]
+<!-- gender_difference = gender_difference[!gender_difference$scol %in% "secondaria", ] -->
 
-for (i in 9:nrow(gender_difference)) {
-  gender_difference[i, "difference"] = gender_difference[i, "mean_time"] - 
-    gender_difference[i-8, "mean_time"]
-}
+<!-- for (i in 9:nrow(gender_difference)) { -->
+<!--   gender_difference[i, "difference"] = gender_difference[i, "mean_time"] -  -->
+<!--     gender_difference[i-8, "mean_time"] -->
+<!-- } -->
 
-# ora seleziono solo le righe con superiore 
+<!-- # ora seleziono solo le righe con superiore  -->
 
-gender_difference = gender_difference[gender_difference$scol %in% "superiore", ]
+<!-- gender_difference = gender_difference[gender_difference$scol %in% "superiore", ] -->
 
-ggplot(gender_difference, 
-       aes(x = item.diff, 
-           y = difference, 
-           color = gender, group = gender, linetype = gender)) + geom_point() + theme_light() + geom_line(aes(y = difference))
-```
+<!-- ggplot(gender_difference,  -->
+<!--        aes(x = item.diff,  -->
+<!--            y = difference,  -->
+<!--            color = gender, group = gender, linetype = gender)) + geom_point() + theme_light() + geom_line(aes(y = difference)) -->
+<!-- ``` -->
 
 
-:::
+<!-- ::: -->
 
 
-## Tempi di risposta corrette vs. errate (Scolairtà)
+<!-- ## Tempi di risposta corrette vs. errate (Scolairtà) -->
 
-```{r}
-data$correct = factor(data$correct, 
-                      levels = c("0", "1"))
+<!-- ```{r} -->
+<!-- data$correct = factor(data$correct,  -->
+<!--                       levels = c("0", "1")) -->
 
-data$item.diff = factor(data$item.diff, 
-                        levels = c("molto.facile", 
-                                   "facili", 
-                                   "difficile", 
-                                   "molto.difficile"))
-# ggplot(data, 
-#        aes(x = item.diff, y = time.diff.item, 
-#            color =correct)) + geom_boxplot() + 
-#   facet_wrap(~scol) + theme_light()
+<!-- data$item.diff = factor(data$item.diff,  -->
+<!--                         levels = c("molto.facile",  -->
+<!--                                    "facili",  -->
+<!--                                    "difficile",  -->
+<!--                                    "molto.difficile")) -->
+<!-- # ggplot(data,  -->
+<!-- #        aes(x = item.diff, y = time.diff.item,  -->
+<!-- #            color =correct)) + geom_boxplot() +  -->
+<!-- #   facet_wrap(~scol) + theme_light() -->
 
-item_ce_time = data %>% 
-  group_by(scol, correct, item.diff) %>% 
-  summarise(mean = mean(time.diff.item), 
-            sd = sd(time.diff.item))
-item_ce_time$correct = factor(item_ce_time$correct, 
-                      levels = c("0", "1"))
-ggplot(item_ce_time, 
-       aes(x = item.diff, y = mean, 
-           color = correct, group = correct)) + 
-  geom_point(size = 2) +
-  geom_line(aes(y=mean)) + facet_wrap(~scol) + theme_light() #+ geom_errorbar(aes(x=item.diff, 
-  #                                                                                ymin = mean-sd, ymax=mean+sd))
+<!-- item_ce_time = data %>%  -->
+<!--   group_by(scol, correct, item.diff) %>%  -->
+<!--   summarise(mean = mean(time.diff.item),  -->
+<!--             sd = sd(time.diff.item)) -->
+<!-- item_ce_time$correct = factor(item_ce_time$correct,  -->
+<!--                       levels = c("0", "1")) -->
+<!-- ggplot(item_ce_time,  -->
+<!--        aes(x = item.diff, y = mean,  -->
+<!--            color = correct, group = correct)) +  -->
+<!--   geom_point(size = 2) + -->
+<!--   geom_line(aes(y=mean)) + facet_wrap(~scol) + theme_light() #+ geom_errorbar(aes(x=item.diff,  -->
+<!--   #                                                                                ymin = mean-sd, ymax=mean+sd)) -->
 
 
-```
+<!-- ``` -->
 
 
-## Tempi di risposta corrette vs. errate (Età - generazione)
+<!-- ## Tempi di risposta corrette vs. errate (Età - generazione) -->
 
-```{r}
+<!-- ```{r} -->
 
-item_ce_time_gen = data %>% 
-  group_by(new.gen, correct, item.diff) %>% 
-  summarise(mean = mean(time.diff.item), 
-            sd = sd(time.diff.item))
-item_ce_time_gen$correct = factor(item_ce_time_gen$correct, 
-                      levels = c("0", "1"))
-ggplot(item_ce_time_gen, 
-       aes(x = item.diff, y = mean, 
-           color = correct, group = correct)) + 
-  geom_point(size = 2) +
-  geom_line(aes(y=mean)) + facet_wrap(~new.gen) + theme_light() + geom_errorbar(aes(x=item.diff, 
-                                                                           ymin = mean-sd, ymax=mean+sd), width = .2)
+<!-- item_ce_time_gen = data %>%  -->
+<!--   group_by(new.gen, correct, item.diff) %>%  -->
+<!--   summarise(mean = mean(time.diff.item),  -->
+<!--             sd = sd(time.diff.item)) -->
+<!-- item_ce_time_gen$correct = factor(item_ce_time_gen$correct,  -->
+<!--                       levels = c("0", "1")) -->
+<!-- ggplot(item_ce_time_gen,  -->
+<!--        aes(x = item.diff, y = mean,  -->
+<!--            color = correct, group = correct)) +  -->
+<!--   geom_point(size = 2) + -->
+<!--   geom_line(aes(y=mean)) + facet_wrap(~new.gen) + theme_light() + geom_errorbar(aes(x=item.diff,  -->
+<!--                                                                            ymin = mean-sd, ymax=mean+sd), width = .2) -->
 
 
-```
+<!-- ``` -->
 
-# Distrattori 
+<!-- # Distrattori  -->
 
-```{r}
-data = merge(data, guide)
+<!-- ```{r} -->
+<!-- data = merge(data, guide) -->
 
 
-distr_prob = data.frame(table(data$id_question, 
-                 data$macro_distractors)/length(unique(data$id)))
+<!-- distr_prob = data.frame(table(data$id_question,  -->
+<!--                  data$macro_distractors)/length(unique(data$id))) -->
 
-colnames(distr_prob) = c("id_question", "response", "prop")
-distr_prob$response = factor(distr_prob$response, 
-                             levels = c( "0","D", "WP", "R", "IC", "correct"))
-item_prob = item_prob[order(item_prob$correct), ]
-item_prob$new_id = 1:nrow(item_prob)
+<!-- colnames(distr_prob) = c("id_question", "response", "prop") -->
+<!-- distr_prob$response = factor(distr_prob$response,  -->
+<!--                              levels = c( "0","D", "WP", "R", "IC", "correct")) -->
+<!-- item_prob = item_prob[order(item_prob$correct), ] -->
+<!-- item_prob$new_id = 1:nrow(item_prob) -->
 
-distr_prob = merge(distr_prob, item_prob)
+<!-- distr_prob = merge(distr_prob, item_prob) -->
 
-ggplot(distr_prob, 
-       aes(x = as.factor(new_id), y = prop, fill = response)) + 
-  geom_bar(stat = "identity") + scale_fill_brewer(palette = "Dark2") + 
-  scale_x_discrete(labels = item_prob$id_question) + theme_light()
+<!-- ggplot(distr_prob,  -->
+<!--        aes(x = as.factor(new_id), y = prop, fill = response)) +  -->
+<!--   geom_bar(stat = "identity") + scale_fill_brewer(palette = "Dark2") +  -->
+<!--   scale_x_discrete(labels = item_prob$id_question) + theme_light() -->
 
-```
+<!-- ``` -->
 
-## Considerando la scolarità
+<!-- ## Considerando la scolarità -->
 
-```{r}
-temp = data[, c("id", "scol")]
+<!-- ```{r} -->
+<!-- temp = data[, c("id", "scol")] -->
 
-scol = temp %>% distinct()
+<!-- scol = temp %>% distinct() -->
 
 
-freq_scol = data.frame(table(scol$scol))
+<!-- freq_scol = data.frame(table(scol$scol)) -->
 
-colnames(freq_scol) = c("scol", "tot.scol")
+<!-- colnames(freq_scol) = c("scol", "tot.scol") -->
 
 
-distr_scol_prob = data.frame(table(data$id_question, 
-                              data$macro_distractors, 
-                              data$scol))
+<!-- distr_scol_prob = data.frame(table(data$id_question,  -->
+<!--                               data$macro_distractors,  -->
+<!--                               data$scol)) -->
 
-colnames(distr_scol_prob) = c("id_question", "response", "scol", 
-                              "tot.freq")
+<!-- colnames(distr_scol_prob) = c("id_question", "response", "scol",  -->
+<!--                               "tot.freq") -->
 
-distr_scol_prob$response = factor(distr_scol_prob$response, 
-                             levels = c( "0","D", "WP", "R", "IC", "correct"))
+<!-- distr_scol_prob$response = factor(distr_scol_prob$response,  -->
+<!--                              levels = c( "0","D", "WP", "R", "IC", "correct")) -->
 
-distr_scol_prob = merge(distr_scol_prob, freq_scol)
-distr_scol_prob$prop = distr_scol_prob$tot.freq/distr_scol_prob$tot.scol
+<!-- distr_scol_prob = merge(distr_scol_prob, freq_scol) -->
+<!-- distr_scol_prob$prop = distr_scol_prob$tot.freq/distr_scol_prob$tot.scol -->
 
-distr_scol_prob = merge(distr_scol_prob, item_prob)
-```
+<!-- distr_scol_prob = merge(distr_scol_prob, item_prob) -->
+<!-- ``` -->
 
-::: {.panel-tabset}
+<!-- ::: {.panel-tabset} -->
 
 
-## Primaria
-```{r}
-ggplot(distr_scol_prob[distr_scol_prob$scol %in% "primaria", ], 
-       aes(x = as.factor(new_id), y = prop, fill = response)) + 
-  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
-  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
-  facet_wrap(~scol)
-```
+<!-- ## Primaria -->
+<!-- ```{r} -->
+<!-- ggplot(distr_scol_prob[distr_scol_prob$scol %in% "primaria", ],  -->
+<!--        aes(x = as.factor(new_id), y = prop, fill = response)) +  -->
+<!--   geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") +  -->
+<!--   scale_x_discrete(labels = item_prob$id_question) + theme_light() +  -->
+<!--   facet_wrap(~scol) -->
+<!-- ``` -->
 
-## Secondaria
-```{r}
-ggplot(distr_scol_prob[distr_scol_prob$scol %in% "secondaria", ], 
-       aes(x = as.factor(new_id), y = prop, fill = response)) + 
-  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
-  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
-  facet_wrap(~scol)
-```
+<!-- ## Secondaria -->
+<!-- ```{r} -->
+<!-- ggplot(distr_scol_prob[distr_scol_prob$scol %in% "secondaria", ],  -->
+<!--        aes(x = as.factor(new_id), y = prop, fill = response)) +  -->
+<!--   geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") +  -->
+<!--   scale_x_discrete(labels = item_prob$id_question) + theme_light() +  -->
+<!--   facet_wrap(~scol) -->
+<!-- ``` -->
 
 
-## Superiore
-```{r}
-ggplot(distr_scol_prob[distr_scol_prob$scol %in% "superiore", ], 
-       aes(x = as.factor(new_id), y = prop, fill = response)) + 
-  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
-  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
-  facet_wrap(~scol)
-```
+<!-- ## Superiore -->
+<!-- ```{r} -->
+<!-- ggplot(distr_scol_prob[distr_scol_prob$scol %in% "superiore", ],  -->
+<!--        aes(x = as.factor(new_id), y = prop, fill = response)) +  -->
+<!--   geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") +  -->
+<!--   scale_x_discrete(labels = item_prob$id_question) + theme_light() +  -->
+<!--   facet_wrap(~scol) -->
+<!-- ``` -->
 
-:::
+<!-- ::: -->
 
 
 
-## Considerando la scolarità
+<!-- ## Considerando la scolarità -->
 
-```{r}
-temp = data[, c("id", "scol")]
+<!-- ```{r} -->
+<!-- temp = data[, c("id", "scol")] -->
 
-scol = temp %>% distinct()
+<!-- scol = temp %>% distinct() -->
 
 
-freq_scol = data.frame(table(scol$scol))
+<!-- freq_scol = data.frame(table(scol$scol)) -->
 
-colnames(freq_scol) = c("scol", "tot.scol")
+<!-- colnames(freq_scol) = c("scol", "tot.scol") -->
 
 
-distr_scol_prob = data.frame(table(data$id_question, 
-                              data$macro_distractors, 
-                              data$scol))
+<!-- distr_scol_prob = data.frame(table(data$id_question,  -->
+<!--                               data$macro_distractors,  -->
+<!--                               data$scol)) -->
 
-colnames(distr_scol_prob) = c("id_question", "response", "scol", 
-                              "tot.freq")
+<!-- colnames(distr_scol_prob) = c("id_question", "response", "scol",  -->
+<!--                               "tot.freq") -->
 
-distr_scol_prob$response = factor(distr_scol_prob$response, 
-                             levels = c( "0","D", "WP", "R", "IC", "correct"))
+<!-- distr_scol_prob$response = factor(distr_scol_prob$response,  -->
+<!--                              levels = c( "0","D", "WP", "R", "IC", "correct")) -->
 
-distr_scol_prob = merge(distr_scol_prob, freq_scol)
-distr_scol_prob$prop = distr_scol_prob$tot.freq/distr_scol_prob$tot.scol
+<!-- distr_scol_prob = merge(distr_scol_prob, freq_scol) -->
+<!-- distr_scol_prob$prop = distr_scol_prob$tot.freq/distr_scol_prob$tot.scol -->
 
-distr_scol_prob = merge(distr_scol_prob, item_prob)
-```
+<!-- distr_scol_prob = merge(distr_scol_prob, item_prob) -->
+<!-- ``` -->
 
-::: {.panel-tabset}
+<!-- ::: {.panel-tabset} -->
 
 
-## Primaria
-```{r}
-ggplot(distr_scol_prob[distr_scol_prob$scol %in% "primaria", ], 
-       aes(x = as.factor(new_id), y = prop, fill = response)) + 
-  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
-  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
-  facet_wrap(~scol)
-```
+<!-- ## Primaria -->
+<!-- ```{r} -->
+<!-- ggplot(distr_scol_prob[distr_scol_prob$scol %in% "primaria", ],  -->
+<!--        aes(x = as.factor(new_id), y = prop, fill = response)) +  -->
+<!--   geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") +  -->
+<!--   scale_x_discrete(labels = item_prob$id_question) + theme_light() +  -->
+<!--   facet_wrap(~scol) -->
+<!-- ``` -->
 
-## Secondaria
-```{r}
-ggplot(distr_scol_prob[distr_scol_prob$scol %in% "secondaria", ], 
-       aes(x = as.factor(new_id), y = prop, fill = response)) + 
-  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
-  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
-  facet_wrap(~scol)
-```
+<!-- ## Secondaria -->
+<!-- ```{r} -->
+<!-- ggplot(distr_scol_prob[distr_scol_prob$scol %in% "secondaria", ],  -->
+<!--        aes(x = as.factor(new_id), y = prop, fill = response)) +  -->
+<!--   geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") +  -->
+<!--   scale_x_discrete(labels = item_prob$id_question) + theme_light() +  -->
+<!--   facet_wrap(~scol) -->
+<!-- ``` -->
 
 
-## Superiore
-```{r}
-ggplot(distr_scol_prob[distr_scol_prob$scol %in% "superiore", ], 
-       aes(x = as.factor(new_id), y = prop, fill = response)) + 
-  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
-  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
-  facet_wrap(~scol)
-```
+<!-- ## Superiore -->
+<!-- ```{r} -->
+<!-- ggplot(distr_scol_prob[distr_scol_prob$scol %in% "superiore", ],  -->
+<!--        aes(x = as.factor(new_id), y = prop, fill = response)) +  -->
+<!--   geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") +  -->
+<!--   scale_x_discrete(labels = item_prob$id_question) + theme_light() +  -->
+<!--   facet_wrap(~scol) -->
+<!-- ``` -->
 
-:::
+<!-- ::: -->

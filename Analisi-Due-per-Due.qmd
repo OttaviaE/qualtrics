@@ -1,0 +1,1037 @@
+---
+title: "Analisi matrici $2 \\times2$"
+author: "Ottavia"
+date: today
+format: 
+  html: 
+    page-layout: full
+    toc: true
+    toc-location: left
+lang: it
+execute: 
+  eval: true
+  echo: false
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(psych)
+library(corrplot)
+library(ggplot2)
+library(car)
+library(dplyr)
+library(xtable)
+library(mokken)
+library(lavaan)
+library(TAM)
+library(lavaanPlot)
+library(difR)
+library(knitr)
+
+IRT <- function(theta, a = 1, b = 0, c = 0,e = 1) {
+  y <- c + (e - c) * exp(a * (theta - b)) / (1 + exp(a * (theta - b)))
+  y[is.na(y)] = 1
+  return(y)
+}
+
+
+irt.icc = function(model) {
+  item_par = model$item
+  est_theta = seq(-4,4, length.out=1000)
+  item_prob = list()
+  if (any(grep("guess", colnames(item_par))) == F) {
+    for (i in 1:nrow(item_par)) {
+      item_prob[[i]] = data.frame(theta = est_theta)
+      item_prob[[i]]$it_p = IRT(item_prob[[i]]$theta, 
+                                b = item_par[i, "xsi.item"], 
+                                a = item_par[i, "B.Cat1.Dim1"])
+      item_prob[[i]]$item = item_par[i, "item"]
+    }
+  } else {
+    for (i in 1:nrow(item_par)) {
+      item_prob[[i]] = data.frame(theta = est_theta)
+      item_prob[[i]]$it_p = IRT(item_prob[[i]]$theta, 
+                                b = item_par[i, "AXsi_.Cat1"], 
+                                a = item_par[i, "B.Cat1.Dim1"], 
+                                c = item_par[i, "guess"])
+      item_prob[[i]]$item = item_par[i, "item"]
+    }
+  }
+  p = do.call("rbind", item_prob)
+  gp = ggplot(p, 
+              aes(x = theta, y = it_p, group = item, col =
+                    item)) + geom_line(lwd = 1)
+  object = list(prob.data = p, 
+                icc.graph = gp)
+  return(object)
+}
+# restituisce la dipendenza locale ----
+dip.local = function(model, cut = .20) {
+  temp_local = model$Q3.matr
+  index = which( upper.tri(temp_local,diag=F) , arr.ind = TRUE )
+  local = data.frame( col = dimnames(temp_local)[[2]][index[,2]] ,
+                      row = dimnames(temp_local)[[1]][index[,1]] ,
+                      val = temp_local[ index ] )
+  summary.local = local[abs(local$val) > cut, ]
+  return(summary.local)
+}
+# ridà i parametri degli item ordinati per proporzione di risposte corrette ----
+item.par = function(model) {
+  est = model$item 
+  est = est[order(est$M), ]
+  return(est)
+}
+# item fit basata sul chi quadro ----
+item.fit = function(model) {
+  temp.fit = tam.modelfit(model)
+  chi = temp.fit$chisquare.itemfit
+  chi = chi[chi$p.holm < .05, ]
+  return(chi)
+}
+data = read.csv("D:/PRIN2020/qualtrics/psycAssist/mat49_2023_03_26.csv", 
+                header = T, sep = ",")
+data = data[!data$external_code %in% "UTENTE01", ]
+data = data[!data$date_end %in% "NULL", ]
+
+table(data$external_code)
+
+guide = read.csv("D:/PRIN2020/qualtrics/skill_young.csv",
+                 header = T, sep = ",")
+guide$id_question = 1:nrow(guide)
+data$id_question = data$id_question + 1
+problems = data[data$id_question %in% c(3, 7), ]
+data = data[!data$id_question %in% c(3), ]
+data = data[!data$anni_scolarita %in% "NULL", ]
+temp = data[, c("id", "id_question", "task_success")]
+
+data = merge(data, guide, by = "id_question")
+
+# faccio subito la ricodifica dei distrattori -----
+
+data$response_vector = gsub('[\"]', "", data$response_vector)
+data$distractors = gsub(".*_", "", data$response_vector)
+data$distractors = gsub(".svg]", "", data$distractors)
+# macro_distractors contiene solo le macrocategorie di distrattori 
+data$macro_distractors = numeric(nrow(data))
+
+for (i in 1:nrow(data)) {
+  if(data[i, "distractors"] == "d.union" | data[i, "distractors"] == "diff1" | data[i, "distractors"] == "diff2" | data[i, "distractors"] == "diff") {
+    data[i, "macro_distractors"] = "D"
+  } else if (grepl("ic", data[i, "distractors"])  ==T) {
+    data[i, "macro_distractors"] = "IC"
+  } else if (grepl("wp", data[i, "distractors"])  ==T) {
+    data[i, "macro_distractors"] = "WP"
+  } else if (grepl("correct", data[i, "distractors"])  ==T){
+    data[i, "macro_distractors"] = "correct"
+  } else if (data[i, "distractors"] == "r.left" | data[i, "distractors"] == "r.top" | data[i, "distractors"] == "r.diag"){
+    data[i, "macro_distractors"] = "R"
+  }
+}
+
+
+data$time.diff.item = difftime(data$end_time, 
+                               data$start_time, 
+                               units = "secs")
+data$time.diff.item = as.numeric(data$time.diff.item)
+sum.time =aggregate(time.diff.item ~ id, 
+                    data, sum)
+colnames(sum.time)[2] = "sum.time"
+sum.time$sum.time = as.numeric(sum.time$sum.time)
+
+# # unisco il dettaglio sui tempi al dataset ----
+data = merge(data, sum.time, by="id")
+temp$task_success = ifelse(temp$task_success == "True", 
+                           1, 0)
+
+
+wide.temp = reshape(temp, 
+                    idvar = "id", 
+                    timevar = "id_question", 
+                    direction = "wide")
+wide.temp$total_score = rowSums(wide.temp[,-1], na.rm = T)
+wide.temp = wide.temp[order(wide.temp$total_score), ]
+wide.temp$new.id = 1:nrow(wide.temp)
+
+small_sbj = data[, c("id", "anni_scolarita", 
+                     "gender", "diagnostic")]
+small_sbj = small_sbj %>% distinct()
+# recode disagi persone ------ 
+small_sbj$diagnostic = tolower(small_sbj$diagnostic)
+small_sbj$new.diag = ifelse(small_sbj$diagnostic == "", 
+                            "ok", 
+                            ifelse(grepl("disort", small_sbj$diagnostic), 
+                                   "DSA", 
+                                   ifelse(grepl("disless", small_sbj$diagnostic), 
+                                          "DSA", "altro")))
+
+wide.temp = merge(wide.temp, small_sbj)
+
+
+wide.temp$new.scol = ifelse(wide.temp$anni_scolarita == 0, 
+                            "yy", "y")
+
+data$new.scol = ifelse(data$anni_scolarita == 0, 
+                            "yy", "y")
+table(wide.temp$anni_scolarita)
+# tempi di risposta degli item 
+couple_data = data[data$id_question %in% c(6:10,12:17, 19), ]
+couple_data$id_question = factor(couple_data$id_question,
+                                 levels = c("6","13","7","14","8","15",
+                                            "9","16","10","17","12","19"))
+
+couple_data$couple = character(nrow(couple_data))
+
+for(i in 1:nrow(couple_data)) {
+  if (couple_data[i, "id_question"] == 6 | couple_data[i, "id_question"] == 13) {
+    couple_data[i, "couple"] = "6.13"
+  } else if (couple_data[i, "id_question"] == 7 | couple_data[i, "id_question"] == 14) {
+    couple_data[i, "couple"] = "7.14"
+  } else if (couple_data[i, "id_question"] == 8 | couple_data[i, "id_question"] == 15) {
+    couple_data[i, "couple"] = "8.15"
+  } else if (couple_data[i, "id_question"] == 9 | couple_data[i, "id_question"] == 16) {
+    couple_data[i, "couple"] = "9.16"
+  } else if (couple_data[i, "id_question"] == 10 | couple_data[i, "id_question"] == 17) {
+    couple_data[i, "couple"] = "10.17"
+  } else if (couple_data[i, "id_question"] == 12 | couple_data[i, "id_question"] == 19) {
+    couple_data[i, "couple"] = "12.19"
+  }
+}
+
+couple_data$couple = factor(couple_data$couple, 
+                            levels = c("6.13","7.14", "8.15", 
+                                       "9.16", "10.17", "12.19"))
+
+dsc_couple = couple_data[, c("id_question", "couple")]
+dsc_couple = dsc_couple %>% distinct()
+dsc_couple$id_question = factor(dsc_couple$id_question, 
+                         levels = c("6","13","7","14","8","15",
+                  "9","16","10","17","12","19"))
+
+dsc_couple$couple = factor(dsc_couple$couple, 
+                            levels = c("6.13","7.14", "8.15", 
+                                       "9.16", "10.17", "12.19"))
+dsc_couple$color = ifelse(as.integer(as.character(dsc_couple$id_question)) <= 12, 
+                          "Color", 
+                          "BN")
+
+
+couple_data$new.scol = factor(couple_data$new.scol, 
+                              levels = c("yy", "y"))
+couple_data$correct = ifelse(couple_data$task_success == "True", 1, 0)
+
+id_couples = couple_data[, c("id_question", "couple")]
+id_couples = id_couples %>% 
+  distinct()
+id_couples$id_question = paste0("items.", id_couples$id_question)
+
+id_couples_temp = id_couples
+id_couples_temp$id_question = gsub("items.", "", id_couples_temp$id_question)
+
+
+```
+
+
+# Introduzione 
+
+In questo file sono riportate alcune analisi effettuate sulle matrici $2\times 2$ dei bambini, in particolare considerando le coppie di matrici colorate: 
+
+```{r}
+dsc_couple %>% 
+kable(align = "c")
+```
+
+
+I dati sono del 26 Marzo e contengono le osservazioni su `r nrow(wide.temp)`. Relativamente alle scolarità: 
+
+```{r}
+dsc_scol = small_sbj %>% 
+  group_by(anni_scolarita) %>% 
+  summarise(n = n())
+
+dsc_scol$new.scol = ifelse(dsc_scol$anni_scolarita == 0, 
+                           "YY", "Y")
+
+dsc_scol %>%  
+  kable(align = "c")
+```
+
+
+Per le analisi più avanti faccio riferimento alla nuova categorizzazione di scuola "YY" (prescolari) vs "Y" (tutti gli altri bambini). 
+
+# Tempi di risposta 
+
+Confronto tempi di risposta per ogni coppia di item considerando la scolarità 
+
+
+::: {.panel-tabset}
+
+
+## Medie e sd
+
+```{r}
+mean_time_couple = couple_data %>%  
+  group_by(new.scol, colore, couple) %>% 
+  summarise(mean_time = mean(time.diff.item), sd_time = sd(time.diff.item))
+
+ggplot(mean_time_couple, 
+       aes(x = new.scol, y = mean_time, color = colore)) + geom_point(size = 2) + 
+  geom_errorbar(aes(x=new.scol, 
+                    ymin = mean_time-sd_time, 
+                    ymax = mean_time+sd_time), width = .2) + 
+  facet_wrap(~couple) + theme_light()
+```
+
+
+## Boxplot
+
+
+```{r}
+ggplot(couple_data, 
+       aes(x = new.scol, y = time.diff.item, color = colore)) + geom_boxplot() + 
+  facet_wrap(~couple) + ylim(0, 50) + theme_light()
+```
+
+:::
+
+## Tempi di risposta ed accuratezze 
+
+Sull'asse delle y sono riporate le matrici ordinate dalla più difficile (bottom) alla più facile (top), sull'asse delle x sono riportati i tempi ad ogni matrice. I bambini prescoalri (yy) sono riportati in rosa, quelli scoalri (Y) sono riporati in azzurro mentre i diversi simboli identificano le coppie di matrici. Le etichette delle matrici riportate in grassetto indicano che la matrice in questione è colorata. 
+
+```{r}
+item_prob_scol = couple_data %>%  
+  group_by(id_question, new.scol) %>% 
+  summarise(prop = mean(correct))
+
+item_time_scol = couple_data %>%  
+  group_by(id_question, new.scol) %>% 
+  summarise(mean_time = mean(time.diff.item), sd = sd(time.diff.item))
+
+
+
+item_char = merge(item_prob_scol, item_time_scol)
+item_char$id_question = factor(item_char$id_question, 
+                               levels = c("6","13","7","14","8","15",
+                                                   "9","16","10","17","12","19"))
+item_char = merge(item_char, id_couples_temp)
+item_char$new.id = ifelse(as.integer(as.character(item_char$id_question)) <= 12, 
+                          "bold", 
+                          "italic")
+
+
+item_char = item_char[order(item_char$prop), ]
+x.guide = item_char[, c("id_question", "new.id")]
+x.guide = x.guide %>% distinct()
+item_char$new.id = as.character(item_char$new.id)
+ggplot(item_char, 
+       aes(x = reorder(id_question, prop), y=mean_time, 
+           col = new.scol, shape = couple)) + geom_point(size = 3) + theme_light() +
+  theme(axis.text.y  = element_text(face  =  ifelse((item_char$new.id) == "bold", "bold", "italic" ), size = 16), 
+        axis.title.y = element_blank()) + coord_flip() #+ 
+  # geom_errorbar(aes(x = id_question, 
+  #                   ymin = mean_time-sd, 
+  #                   ymax = mean_time+sd), width =.2) 
+
+
+```
+
+
+# Distrattori 
+
+Ho focalizzato l'attenzione sui distrattori per cercare di capire se effettivamente la scelta di un distrattore piuttosto che un altro può cambiare in base alla presenza del colore. 
+
+::: {.panel-tabset}
+
+## Macro distrattori
+
+```{r}
+freq_item_couple = couple_data %>%  group_by(id_question) %>% 
+  summarise(n_item = n()) 
+
+
+
+freq_dist_macro = couple_data %>% 
+  group_by(macro_distractors, id_question) %>% 
+  summarise(n = n())
+
+
+freq_dist_macro = merge(freq_dist_macro, freq_item_couple)
+
+freq_dist_macro$prop = freq_dist_macro$n/freq_dist_macro$n_item
+
+
+freq_dist_macro = merge(freq_dist_macro, id_couples_temp)
+
+
+
+freq_dist_macro$id_question = factor(freq_dist_macro$id_question,
+                               levels = c("6","13","7","14","8","15",
+                                          "9","16","10","17","12","19"))
+
+freq_dist_macro$macro_distractors = factor(freq_dist_macro$macro_distractors, 
+                               levels = c( "WP", 
+                                          "R",  
+                                          "IC", "D",  "correct"))
+ggplot(freq_dist_macro, 
+       aes(x = id_question, y = prop, fill = macro_distractors)) + 
+  geom_bar(stat = "identity") + 
+  geom_hline(aes(yintercept = .25), linetype = 2) + 
+  geom_hline(aes(yintercept = .5), linetype = 2) + 
+  geom_hline(aes(yintercept = .75), linetype = 2) + theme_light() + 
+  scale_fill_brewer(palette = "Dark2") 
+
+```
+
+
+## Distrattori (dettaglio )
+
+```{r}
+freq_dist = couple_data %>% 
+  group_by(distractors, id_question) %>% 
+  summarise(n = n())
+
+freq_dist = merge(freq_dist, freq_item_couple)
+
+freq_dist$prop = freq_dist$n/freq_dist$n_item
+
+id_couples_temp = id_couples
+id_couples_temp$id_question = gsub("items.", "", id_couples_temp$id_question)
+
+
+freq_dist = merge(freq_dist, id_couples_temp)
+# GRAFICO FREQUENZE DISTRATTORI -----
+# devo metterli in ordine di coppia 
+
+
+freq_dist$id_question = factor(freq_dist$id_question,
+       levels = c("6","13","7","14","8","15",
+                  "9","16","10","17","12","19"))
+
+freq_dist$distractors = factor(freq_dist$distractors, 
+                               levels = c("d.union", 
+                                         "wp.matrix", 
+                                          "r.top", "r.left", 
+                                          "ic.flip", "ic.neg", "correct"))
+ggplot(freq_dist, 
+       aes(x = id_question, y = prop, fill = distractors)) + 
+  geom_bar(stat = "identity") + 
+  geom_hline(aes(yintercept = .25), linetype = 2) + 
+  geom_hline(aes(yintercept = .5), linetype = 2) + 
+  geom_hline(aes(yintercept = .75), linetype = 2) + theme_light() + 
+  scale_fill_brewer(palette = "Dark2")
+```
+
+## Macro distrattori e scolarità 
+
+Nei grafici che seguono ho tolto la risposta corretta
+
+```{r}
+freq_item_couple_scol = couple_data %>%  
+  group_by(id_question, new.scol) %>% 
+  summarise(n_item = n()) 
+
+freq_dist_scol_macro = couple_data %>% 
+  group_by(macro_distractors, id_question, new.scol) %>% 
+  summarise(n = n())
+
+
+
+freq_dist_scol_macro = merge(freq_dist_scol_macro, freq_item_couple_scol)
+
+freq_dist_scol_macro$prop = freq_dist_scol_macro$n/freq_dist_scol_macro$n_item
+
+
+freq_dist_scol_macro = merge(freq_dist_scol_macro, id_couples_temp)
+
+freq_dist_scol_macro$new.id = paste(freq_dist_scol_macro$id_question, 
+                                    freq_dist_scol_macro$new.scol, 
+                              sep = ".")
+freq_dist_scol_macro$new.id = factor(freq_dist_scol_macro$new.id, 
+                               levels = c("6.yy", "6.y", 
+                                          "13.yy", "13.y", 
+                                          "7.yy", "7.y", 
+                                          "14.yy", "14.y", 
+                                          "8.yy", "8.y",
+                                          "15.yy", "15.y", 
+                                          "9.yy", "9.y", 
+                                          "16.yy", "16.y", 
+                                          "10.yy", "10.y", 
+                                          "17.yy", "17.y", 
+                                          "12.yy", "12.y", 
+                                          "19.yy", "19.y"))
+
+freq_dist_scol_macro$macro_distractors = factor(freq_dist_scol_macro$macro_distractors, 
+                               levels = c( "WP", 
+                                          "R",  
+                                          "IC", "D",  "correct"))
+ggplot(freq_dist_scol_macro[freq_dist_scol_macro$couple %in% c("6.13", "7.14", "8.15") & !freq_dist_scol_macro$macro_distractors %in%"correct", ], 
+       aes(x = new.id, y = prop, fill = macro_distractors)) + 
+  geom_bar(stat = "identity", position = position_dodge())  + 
+  geom_hline(aes(yintercept = .25), linetype = 2) + 
+  geom_hline(aes(yintercept = .5), linetype = 2) + 
+  geom_hline(aes(yintercept = .75), linetype = 2) + theme_light() + 
+  scale_fill_brewer(palette = "Dark2")
+
+
+ggplot(freq_dist_scol_macro[!freq_dist_scol_macro$couple %in% c("6.13", "7.14", "8.15") & !freq_dist_scol_macro$macro_distractors %in%"correct", , ], 
+       aes(x = new.id, y = prop, fill = macro_distractors)) + 
+  geom_bar(stat = "identity", position = position_dodge())  + 
+  geom_hline(aes(yintercept = .25), linetype = 2) + 
+  geom_hline(aes(yintercept = .5), linetype = 2) + 
+  geom_hline(aes(yintercept = .75), linetype = 2) + theme_light() + 
+  scale_fill_brewer(palette = "Dark2")
+```
+
+
+## Distrattori (dettaglio) e scolarità 
+
+```{r}
+freq_dist_scol = couple_data %>% 
+  group_by(distractors, id_question, new.scol) %>% 
+  summarise(n = n())
+
+
+freq_item_couple_scol = couple_data %>%  
+  group_by(id_question, new.scol) %>% 
+  summarise(n_item = n()) 
+
+freq_dist_scol = merge(freq_dist_scol, freq_item_couple_scol)
+
+freq_dist_scol$prop = freq_dist_scol$n/freq_dist_scol$n_item
+
+
+freq_dist_scol = merge(freq_dist_scol, id_couples_temp)
+
+freq_dist_scol$new.id = paste(freq_dist_scol$id_question, 
+                               freq_dist_scol$new.scol, 
+                               sep = ".")
+freq_dist_scol$new.id = factor(freq_dist_scol$new.id, 
+                               levels = c("6.yy", "6.y", 
+                                          "13.yy", "13.y", 
+                                          "7.yy", "7.y", 
+                                          "14.yy", "14.y", 
+                                          "8.yy", "8.y",
+                                          "15.yy", "15.y", 
+                                          "9.yy", "9.y", 
+                                          "16.yy", "16.y", 
+                                          "10.yy", "10.y", 
+                                          "17.yy", "17.y", 
+                                          "12.yy", "12.y", 
+                                          "19.yy", "19.y"))
+
+ggplot(freq_dist_scol[freq_dist_scol$couple %in% c("6.13", "7.14", "8.15") & !freq_dist_scol$distractors %in% "correct", ], 
+       aes(x = new.id, y = prop, fill = distractors)) + 
+  geom_bar(stat = "identity", position = position_dodge() )  + 
+  geom_hline(aes(yintercept = .25), linetype = 2) + 
+  geom_hline(aes(yintercept = .5), linetype = 2) + 
+  geom_hline(aes(yintercept = .75), linetype = 2) + theme_light() + 
+  scale_fill_brewer(palette = "Dark2")
+
+ggplot(freq_dist_scol[!freq_dist_scol$couple %in% c("6.13", "7.14", "8.15") & !freq_dist_scol$distractors %in% "correct", ], 
+       aes(x = new.id, y = prop, fill = distractors)) + 
+  geom_bar(stat = "identity", position = position_dodge() ) + 
+  geom_hline(aes(yintercept = .25), linetype = 2) + 
+  geom_hline(aes(yintercept = .5), linetype = 2) + 
+  geom_hline(aes(yintercept = .75), linetype = 2) + theme_light() + 
+  scale_fill_brewer(palette = "Dark2")
+```
+
+:::
+
+# Analisi Differential Item Functioning 
+
+Ho preso solo gli item che costituiscono le coppie e ho stimato il modello di Rasch. Sulla base dei risulttai del modello, ho stimato il possibile Differential Item Functioning tra il gruppo di bambini prescolari (YY) e gli altri bambini. 
+
+## Fit del modello 
+
+```{r}
+colnames(wide.temp) = gsub("task_success.", "items.", colnames(wide.temp))
+item = wide.temp[, c("id","new.scol", "items.6", "items.13","items.7", "items.14", 
+                     "items.8", "items.15", "items.9", "items.16", "items.10", "items.17", 
+                     "items.12", "items.19")]
+
+m.1pl = tam.mml(item[, -c(1,2)], pid = item$id, verbose = F)
+fit.m1pl = tam.modelfit(m.1pl, progress = F)
+
+fit.m1pl$modelfit.test %>% 
+  kable()
+
+
+fit.m1pl$statlist %>% 
+  kable()
+```
+
+Nonostante il chi quadro sia significativo, non ha una fit pessima. 
+
+
+```{r}
+item.fit.1pl = IRT.itemfit(m.1pl, progress = F)
+fit.item.summary = item.fit.1pl$RMSD
+
+for (i in 1:nrow(fit.item.summary)) {
+  if (fit.item.summary[i, "Group1"] < .10) {
+    fit.item.summary[i, "summary"] = "fit.ottimale"
+  } else if (fit.item.summary[i, "Group1"] >= .10 & fit.item.summary[i, "Group1"] < .15) {
+    fit.item.summary[i, "summary"] = "fit.okay"
+  } else {
+    fit.item.summary[i, "summary"] = "no.fit"
+  }
+}
+
+if (nrow(fit.item.summary[!fit.item.summary$summary %in% "fit.ottimale", ]) == 0) {
+  print.item = ("Tutti gli item fittano al modello (secondo RMSD)")
+} else {
+  fit.item.summary[!fit.item.summary$summary %in% "fit.ottimale", ]
+}
+```
+ 
+ `r cat(print.item)` mentre secondo il chi quadro:
+
+```{r}
+item.fit(m.1pl)
+```
+
+Dipendenza locale: 
+
+```{r}
+dip.local(fit.m1pl)
+```
+
+
+### I parametri 
+
+NB: Il grafico che segue ha il solo scopo di evidenziare la posizione sul tratto latente dei diversi item, ma il modello è stato fittato considerando tutti gli item insieme. 
+
+```{r}
+par.1pl = irt.icc(m.1pl)$prob.data
+
+dsc_couple.temp = dsc_couple
+
+dsc_couple.temp$item = paste("items", 
+                                    dsc_couple$id_question, sep = ".")
+
+par.1pl = merge(dsc_couple.temp, par.1pl, by = "item")
+
+ggplot(par.1pl, 
+       aes(x = theta, y = it_p, color = color, group = item )) + 
+  geom_line(size = 1.2) + facet_wrap(~couple) + theme_light() + 
+  geom_vline(aes(xintercept = 0), linetype = 2)
+
+```
+
+
+## DIF analysis (Lord)
+
+Calcolo il delta di Lord  e considero il gruppo Y (i bambini scolari) come gruppo reference
+
+Posso prendere due strade: 
+
+1. Faccio l'analisi DIF "ignorando" il fatto che ci sono item con dipendenza locale (STRADA 1)
+
+2. Pulisco prima gli item che non funzionano bene e poi faccio l'analisi DIF (STRADA 2)
+
+Faccio entrambe le cose 
+
+## Strada 1 
+
+
+
+```{r}
+data.ref.all <- item[item$new.scol %in% "y", -c(1,2)]
+data.focal.all <- item[!item$new.scol %in% "y", -c(1,2)]
+# Pre-estimation of the item parameters (1PL model)
+mR.all <- itemParEst(data.ref.all, model = "1PL")
+mF.all <- itemParEst(data.focal.all, model = "1PL")
+mF.all <- itemRescale(mR.all,mF.all)
+dif_parameters.all = rbind(mR.all, mF.all)
+
+
+dif.1.all = difLord(irtParam = dif_parameters.all,model = "1PL", engine = "ltm",
+                same.scale = T, p.adjust.method = "BH")
+
+my.dif = function(dif.out) {
+  m.dif = dif.out
+
+ipar = m.dif$itemParInit
+ipar = data.frame(cbind(ipar[c(((nrow(ipar)/2)+1):nrow(ipar)), ], 
+             ipar[c(1:(nrow(ipar)/2)), ]))
+colnames(ipar)[c(1,3)] = paste0(rep("b",2),
+                                  c("F", "R"))
+ipar$dif =ipar$bF - ipar$bR 
+ipar$deltaLord = ipar$dif * -2.35
+for (i in 1:ncol(ipar)) {
+  ipar[,i] = round(ipar[,i],2)
+}
+
+LordChi = round(m.dif$LordChi, 2)
+p.adj = round(m.dif$adjusted.p, 3)
+
+sum.ipar = cbind(LordChi, p.adj, ipar)
+return(sum.ipar)
+}
+
+par.dif.all = my.dif(dif.1.all)
+my.dif(dif.1.all) %>% kable(align = "l")
+
+```
+
+Graficamente:
+
+SUll'asse delle x sono riportati i parametri di difficoltà degli item, sull'asse delle y l'etichetta identificativa della coppia, mentre i colori identificano i due gruppi di età (rosa i bambini scolari, azzurri i bambini prescolari). I due pannelli indicano se la matrice è in BN (no) oppure colorata (Si)
+
+```{r}
+par_yy = data.frame(mF.all)
+par_yy$group = "yy"
+colnames(par_yy) = gsub("new.", "", colnames(par_yy))
+par_yy$id_question = rownames(par_yy)
+
+par_y = data.frame(mR.all)
+par_y$group = "y"
+par_y$id_question = rownames(par_yy)
+
+par_dif = rbind(par_yy, par_y) 
+
+id_couples = couple_data[, c("id_question", "couple")]
+id_couples = id_couples %>% 
+  distinct()
+id_couples$id_question = paste0("items.", id_couples$id_question)
+
+
+par_dif = merge(par_dif, id_couples)
+small_guide  = guide[, c("id_question", "colore")]
+small_guide$id_question =  paste0("items.", small_guide$id_question)
+
+par_dif = merge(par_dif, small_guide)
+
+
+temp = cbind(par_yy, par_y)
+temp$difference = temp[,1] - temp[,5]
+temp = temp[,c("id_question", "difference")]
+
+par_dif =merge(par_dif, temp)
+
+par_dif$couple = factor(par_dif$couple, 
+                        levels = levels(couple_data$couple))
+ggplot(par_dif, 
+       aes(x =b, y = reorder(couple, difference), 
+           color = group)) + geom_point(size = 3) + facet_wrap(~colore) + 
+  geom_errorbar(aes(y = couple, 
+                     xmin = b - par_dif$se.b, 
+                     xmax = b + par_dif$se.b),width=0.2, size=1) + 
+  theme_light()
+```
+
+Ad esclusione della coppia 9.16, dove la matrice colorata è più difficile per i bambini scolari che epr i bamnini prescolari, nelle coppie 10.17 e 8.15 (le altre coppie dove può esserci una differenza significativa) le matrici sono più facili per i bambini scolari. Nota che nella coppia 9.16, la matrice tende ad essere più semplice per i bambini prescolari. 
+
+
+## Strada 2 
+
+Prima cosa: Togliere gli item che non funzionano bene: 
+
+```{r}
+dip.local(fit.m1pl)
+```
+
+Tolgo l'item 14 perché è lui quello che disturba di più e rifitto il modello. Per questa tabelle e le prossime tabelle dove sono riportate statstiche di fit dei modelli, la prima riga r
+
+```{r}
+item.14 = item[, -grep("items.14", colnames(item))]
+
+m.1pl.14 = tam.mml(item.14[, -c(1,2)], pid = item.14$id, verbose = F)
+fit.m1pl.14 = tam.modelfit(m.1pl.14, progress = F)
+
+comp.1 = rbind(fit.m1pl.14$modelfit.test, 
+      fit.m1pl$modelfit.test) 
+rownames(comp.1) = c("m.14", "m.all")
+comp.1 %>% 
+  kable()
+
+comp.1a = rbind(fit.m1pl.14$statlist, 
+      fit.m1pl$statlist)
+rownames(comp.1a) = c("m.14", "m.all")
+ 
+
+comp.1a %>% 
+  kable()
+```
+
+
+```{r}
+item.fit(m.1pl.14)
+```
+
+Dipendenza locale: 
+
+```{r}
+dip.local(fit.m1pl.14)
+```
+
+Sono due matrici colorate, non facenti parte della stessa coppia. Tolgo la 9 perché è leggermente più facile: 
+
+```{r}
+item.par(m.1pl.14)
+```
+
+
+```{r}
+item.9 = item.14[, -grep("items.9", colnames(item.14))]
+
+m.1pl.9 = tam.mml(item.9[, -c(1,2)], pid = item.9$id, verbose = F)
+fit.m1pl.9 = tam.modelfit(m.1pl.9, progress = F)
+
+comp2 = rbind(fit.m1pl.9$modelfit.test, 
+      fit.m1pl.14$modelfit.test,
+      fit.m1pl$modelfit.test) 
+
+rownames(comp2) = c( "m.9", "m.14", "m.all") 
+comp2 %>% 
+  kable()
+
+
+comp2a = rbind(fit.m1pl.9$statlist, 
+      fit.m1pl.14$statlist,
+      fit.m1pl$statlist) 
+rownames(comp2a) = c( "m.9", "m.14", "m.all")
+
+comp2%>% 
+  kable()
+
+```
+
+
+Ora il modello fitta in tutto e per tutto. controllo la dipendenza locale: 
+
+```{r}
+dip.local(fit.m1pl.9)
+```
+
+Posso investigare la DIF
+
+```{r}
+data.ref.9.14 <- item.9[item.9$new.scol %in% "y", -c(1,2)]
+data.focal.9.14 <- item.9[!item.9$new.scol %in% "y", -c(1,2)]
+# Pre-estimation of the item parameters (1PL model)
+mR.9.14 <- itemParEst(data.ref.9.14, model = "1PL")
+mF.9.14 <- itemParEst(data.focal.9.14, model = "1PL")
+mF.9.14 <- itemRescale(mR.9.14,mF.9.14)
+dif_parameters.9.14 = rbind(mR.9.14, mF.9.14)
+
+
+dif.1.9.14 = difLord(irtParam = dif_parameters.9.14,model = "1PL", engine = "ltm",
+                same.scale = T, p.adjust.method = "BH")
+
+my.dif = function(dif.out) {
+  m.dif = dif.out
+ipar = m.dif$itemParInit
+ipar = data.frame(cbind(ipar[c(((nrow(ipar)/2)+1):nrow(ipar)), ], 
+             ipar[c(1:(nrow(ipar)/2)), ]))
+colnames(ipar)[c(1,3)] = paste0(rep("b",2),
+                                  c("F", "R"))
+ipar$dif =ipar$bF - ipar$bR 
+ipar$deltaLord = ipar$dif * -2.35
+for (i in 1:ncol(ipar)) {
+  ipar[,i] = round(ipar[,i],2)
+}
+
+LordChi = round(m.dif$LordChi, 2)
+p.adj = round(m.dif$adjusted.p, 3)
+
+sum.ipar = cbind(LordChi, p.adj, ipar)
+return(sum.ipar)
+}
+
+par.dif.9.14 = my.dif(dif.1.9.14)
+my.dif(dif.1.9.14) %>% kable(align = "l")
+
+
+```
+
+Graficamente: 
+
+```{r}
+par_yy = data.frame(mF.9.14)
+par_yy$group = "yy"
+colnames(par_yy) = gsub("new.", "", colnames(par_yy))
+par_yy$id_question = rownames(par_yy)
+
+par_y = data.frame(mR.9.14)
+par_y$group = "y"
+par_y$id_question = rownames(par_yy)
+
+par_dif = rbind(par_yy, par_y) 
+
+id_couples = couple_data[, c("id_question", "couple")]
+id_couples = id_couples %>% 
+  distinct()
+id_couples$id_question = paste0("items.", id_couples$id_question)
+
+
+par_dif = merge(par_dif, id_couples)
+sm9.14_guide  = guide[, c("id_question", "colore")]
+sm9.14_guide$id_question =  paste0("items.", sm9.14_guide$id_question)
+
+par_dif = merge(par_dif, sm9.14_guide)
+
+
+temp = cbind(par_yy, par_y)
+temp$difference = temp[,1] - temp[,5]
+temp = temp[,c("id_question", "difference")]
+
+par_dif =merge(par_dif, temp)
+
+par_dif$couple = factor(par_dif$couple, 
+                        levels = levels(couple_data$couple))
+ggplot(par_dif, 
+       aes(x =b, y = reorder(couple, difference), 
+           color = group)) + geom_point(size = 3) + facet_wrap(~colore) + 
+  geom_errorbar(aes(y = couple, 
+                     xmin = b - par_dif$se.b, 
+                     xmax = b + par_dif$se.b),width=0.2, size=1) + 
+  theme_light()
+```
+
+## Strada 2 bis 
+
+Per scrupolo, voglio vedere cosa succedo se elimino l'item 7 
+
+```{r}
+item.7 = item[, -grep("items.7", colnames(item))]
+
+m.1pl.7 = tam.mml(item.7[, -c(1,2)], pid = item.7$id, verbose = F)
+fit.m1pl.7 = tam.modelfit(m.1pl.7, progress = F)
+
+comp.7 = rbind(fit.m1pl.7$modelfit.test, 
+      fit.m1pl$modelfit.test) 
+rownames(comp.7) = c("m.7", "m.all")
+comp.7 %>% 
+  kable()
+
+comp.7a = rbind(fit.m1pl.7$statlist, 
+      fit.m1pl$statlist)
+rownames(comp.7a) = c("m.7", "m.all")
+ 
+
+comp.7a %>% 
+  kable()
+```
+
+
+```{r}
+item.fit(m.1pl.7)
+```
+
+Dipendenza locale: 
+
+```{r}
+dip.local(fit.m1pl.7)
+```
+
+Sono due matrici colorate (e stesse due che ottengo togliendo l'item 14), non facenti parte della stessa coppia. Rimango dell'idea che sia meglio togliere la 9 perché è leggermente più facile: 
+
+```{r}
+item.par(m.1pl.7)
+```
+
+
+```{r}
+item.9a = item.7[, -grep("items.9", colnames(item.7))]
+
+m.1pl.9a = tam.mml(item.9a[, -c(1,2)], pid = item.9a$id, verbose = F)
+fit.m1pl.9a = tam.modelfit(m.1pl.9a, progress = F)
+
+comp9 = rbind(fit.m1pl.9a$modelfit.test, 
+      fit.m1pl.7$modelfit.test,
+      fit.m1pl$modelfit.test) 
+
+rownames(comp9) = c( "m.9", "m.7", "m.all") 
+comp9 %>% 
+  kable()
+
+
+comp9a = rbind(fit.m1pl.9a$statlist, 
+      fit.m1pl.7$statlist,
+      fit.m1pl$statlist) 
+
+rownames(comp9a) = c( "m.9", "m.7", "m.all")
+
+comp9a%>% 
+  kable()
+```
+
+
+Ora il modello fitta in tutto e per tutto. controllo la dipendenza locale: 
+
+```{r}
+dip.local(fit.m1pl.9a)
+```
+
+Posso investigare la DIF
+
+```{r}
+data.ref.9.7 <- item.9a[item.9a$new.scol %in% "y", -c(1,2)]
+data.focal.9.7 <- item.9a[!item.9a$new.scol %in% "y", -c(1,2)]
+# Pre-estimation of the item parameters (1PL model)
+mR.9.7 <- itemParEst(data.ref.9.7, model = "1PL")
+mF.9.7 <- itemParEst(data.focal.9.7, model = "1PL")
+mF.9.7 <- itemRescale(mR.9.7,mF.9.7)
+dif_parameters.9.7 = rbind(mR.9.7, mF.9.7)
+
+
+dif.1.9.7 = difLord(irtParam = dif_parameters.9.7,model = "1PL", engine = "ltm",
+                same.scale = T, p.adjust.method = "BH")
+
+
+par.dif.9.7 = my.dif(dif.1.9.7)
+my.dif(dif.1.9.7) %>% kable(align = "l")
+
+
+```
+
+C'è qualcosa che non va nella stima dei parametri
+
+Graficamente: 
+
+```{r}
+par_yy = data.frame(mF.9.7)
+par_yy$group = "yy"
+colnames(par_yy) = gsub("new.", "", colnames(par_yy))
+par_yy$id_question = rownames(par_yy)
+
+par_y = data.frame(mR.9.7)
+par_y$group = "y"
+par_y$id_question = rownames(par_yy)
+
+par_dif = rbind(par_yy, par_y) 
+
+id_couples = couple_data[, c("id_question", "couple")]
+id_couples = id_couples %>% 
+  distinct()
+id_couples$id_question = paste0("items.", id_couples$id_question)
+
+
+par_dif = merge(par_dif, id_couples)
+sm9.7_guide  = guide[, c("id_question", "colore")]
+sm9.7_guide$id_question =  paste0("items.", sm9.7_guide$id_question)
+
+par_dif = merge(par_dif, sm9.14_guide)
+
+
+temp = cbind(par_yy, par_y)
+temp$difference = temp[,1] - temp[,5]
+temp = temp[,c("id_question", "difference")]
+
+par_dif =merge(par_dif, temp)
+
+par_dif$couple = factor(par_dif$couple, 
+                        levels = levels(couple_data$couple))
+ggplot(par_dif, 
+       aes(x =b, y = reorder(couple, difference), 
+           color = group)) + geom_point(size = 3) + facet_wrap(~colore) + 
+  geom_errorbar(aes(y = couple, 
+                     xmin = b - par_dif$se.b, 
+                     xmax = b + par_dif$se.b),width=0.2, size=1) + 
+  theme_light()
+```
+
+Mi convince di più l'altra soluzione perché è più equilibrata (tolgo una colorata e una bn) e soprattutto le stime dei parametri hanno più senso. 

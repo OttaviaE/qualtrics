@@ -62,6 +62,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#dif-analysis-lord" id="toc-dif-analysis-lord" class="nav-link" data-scroll-target="#dif-analysis-lord">DIF analysis (Lord)</a></li>
   <li><a href="#strada-1" id="toc-strada-1" class="nav-link" data-scroll-target="#strada-1">Strada 1</a></li>
   <li><a href="#strada-2" id="toc-strada-2" class="nav-link" data-scroll-target="#strada-2">Strada 2</a></li>
+  <li><a href="#strada-2-bis" id="toc-strada-2-bis" class="nav-link" data-scroll-target="#strada-2-bis">Strada 2 bis</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -244,6 +245,7 @@ ul.task-list li input[type="checkbox"] {
 </div>
 <section id="tempi-di-risposta-ed-accuratezze" class="level2">
 <h2 class="anchored" data-anchor-id="tempi-di-risposta-ed-accuratezze">Tempi di risposta ed accuratezze</h2>
+<p>Sull’asse delle y sono riporate le matrici ordinate dalla più difficile (bottom) alla più facile (top), sull’asse delle x sono riportati i tempi ad ogni matrice. I bambini prescoalri (yy) sono riportati in rosa, quelli scoalri (Y) sono riporati in azzurro mentre i diversi simboli identificano le coppie di matrici. Le etichette delle matrici riportate in grassetto indicano che la matrice in questione è colorata.</p>
 <div class="cell">
 <div class="cell-output-display">
 <p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid" width="672"></p>
@@ -344,11 +346,9 @@ ul.task-list li input[type="checkbox"] {
 </div>
 <p>Nonostante il chi quadro sia significativo, non ha una fit pessima.</p>
 <div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>Tutti gli item fittano al modello (secondo RMSD)</code></pre>
+
 </div>
-</div>
-<p>, mentre secondo il chi quadro:</p>
+<p>mentre secondo il chi quadro:</p>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
 <pre><code>**** Calculate Residuals 
@@ -372,6 +372,7 @@ ul.task-list li input[type="checkbox"] {
 </div>
 <section id="i-parametri" class="level3">
 <h3 class="anchored" data-anchor-id="i-parametri">I parametri</h3>
+<p>NB: Il grafico che segue ha il solo scopo di evidenziare la posizione sul tratto latente dei diversi item, ma il modello è stato fittato considerando tutti gli item insieme.</p>
 <div class="cell">
 <div class="cell-output-display">
 <p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid" width="672"></p>
@@ -381,7 +382,7 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="dif-analysis-lord" class="level2">
 <h2 class="anchored" data-anchor-id="dif-analysis-lord">DIF analysis (Lord)</h2>
-<p>Calcolo il delta di Lord e considero il gruppo Y come gruppo reference</p>
+<p>Calcolo il delta di Lord e considero il gruppo Y (i bambini scolari) come gruppo reference</p>
 <p>Posso prendere due strade:</p>
 <ol type="1">
 <li><p>Faccio l’analisi DIF “ignorando” il fatto che ci sono item con dipendenza locale (STRADA 1)</p></li>
@@ -556,11 +557,13 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 <p>Graficamente:</p>
+<p>SUll’asse delle x sono riportati i parametri di difficoltà degli item, sull’asse delle y l’etichetta identificativa della coppia, mentre i colori identificano i due gruppi di età (rosa i bambini scolari, azzurri i bambini prescolari). I due pannelli indicano se la matrice è in BN (no) oppure colorata (Si)</p>
 <div class="cell">
 <div class="cell-output-display">
 <p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
+<p>Ad esclusione della coppia 9.16, dove la matrice colorata è più difficile per i bambini scolari che epr i bamnini prescolari, nelle coppie 10.17 e 8.15 (le altre coppie dove può esserci una differenza significativa) le matrici sono più facili per i bambini scolari. Nota che nella coppia 9.16, la matrice tende ad essere più semplice per i bambini prescolari.</p>
 </section>
 <section id="strada-2" class="level2">
 <h2 class="anchored" data-anchor-id="strada-2">Strada 2</h2>
@@ -573,12 +576,13 @@ ul.task-list li input[type="checkbox"] {
 52 items.12  items.9 -0.2195817</code></pre>
 </div>
 </div>
-<p>Tolgo l’item 14 perché è lui quello che disturba di più e rifitto il modello:</p>
+<p>Tolgo l’item 14 perché è lui quello che disturba di più e rifitto il modello. Per questa tabelle e le prossime tabelle dove sono riportate statstiche di fit dei modelli, la prima riga r</p>
 <div class="cell">
 <div class="cell-output-display">
 <table class="table table-sm table-striped">
 <thead>
 <tr class="header">
+<th style="text-align: left;"></th>
 <th style="text-align: right;">maxX2</th>
 <th style="text-align: right;">Npairs</th>
 <th style="text-align: right;">p.holm</th>
@@ -586,11 +590,13 @@ ul.task-list li input[type="checkbox"] {
 </thead>
 <tbody>
 <tr class="odd">
+<td style="text-align: left;">m.14</td>
 <td style="text-align: right;">14.12706</td>
 <td style="text-align: right;">55</td>
 <td style="text-align: right;">0.0093978</td>
 </tr>
 <tr class="even">
+<td style="text-align: left;">m.all</td>
 <td style="text-align: right;">22.33183</td>
 <td style="text-align: right;">66</td>
 <td style="text-align: right;">0.0001514</td>
@@ -602,6 +608,7 @@ ul.task-list li input[type="checkbox"] {
 <table class="table table-sm table-striped">
 <thead>
 <tr class="header">
+<th style="text-align: left;"></th>
 <th style="text-align: right;">X100.MADCOV</th>
 <th style="text-align: right;">SRMR</th>
 <th style="text-align: right;">SRMSR</th>
@@ -611,6 +618,7 @@ ul.task-list li input[type="checkbox"] {
 </thead>
 <tbody>
 <tr class="odd">
+<td style="text-align: left;">m.14</td>
 <td style="text-align: right;">1.079433</td>
 <td style="text-align: right;">0.0568088</td>
 <td style="text-align: right;">0.0708253</td>
@@ -618,6 +626,7 @@ ul.task-list li input[type="checkbox"] {
 <td style="text-align: right;">0.0093978</td>
 </tr>
 <tr class="even">
+<td style="text-align: left;">m.all</td>
 <td style="text-align: right;">1.154488</td>
 <td style="text-align: right;">0.0591550</td>
 <td style="text-align: right;">0.0761548</td>
@@ -668,6 +677,7 @@ items.16 items.16 416 0.8557692 -2.5673075 -2.5673075           1</code></pre>
 <table class="table table-sm table-striped">
 <thead>
 <tr class="header">
+<th style="text-align: left;"></th>
 <th style="text-align: right;">maxX2</th>
 <th style="text-align: right;">Npairs</th>
 <th style="text-align: right;">p.holm</th>
@@ -675,16 +685,19 @@ items.16 items.16 416 0.8557692 -2.5673075 -2.5673075           1</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
+<td style="text-align: left;">m.9</td>
 <td style="text-align: right;">8.522699</td>
 <td style="text-align: right;">45</td>
 <td style="text-align: right;">0.1578348</td>
 </tr>
 <tr class="even">
+<td style="text-align: left;">m.14</td>
 <td style="text-align: right;">14.127058</td>
 <td style="text-align: right;">55</td>
 <td style="text-align: right;">0.0093978</td>
 </tr>
 <tr class="odd">
+<td style="text-align: left;">m.all</td>
 <td style="text-align: right;">22.331835</td>
 <td style="text-align: right;">66</td>
 <td style="text-align: right;">0.0001514</td>
@@ -696,33 +709,29 @@ items.16 items.16 416 0.8557692 -2.5673075 -2.5673075           1</code></pre>
 <table class="table table-sm table-striped">
 <thead>
 <tr class="header">
-<th style="text-align: right;">X100.MADCOV</th>
-<th style="text-align: right;">SRMR</th>
-<th style="text-align: right;">SRMSR</th>
-<th style="text-align: right;">MADaQ3</th>
-<th style="text-align: right;">pmaxX2</th>
+<th style="text-align: left;"></th>
+<th style="text-align: right;">maxX2</th>
+<th style="text-align: right;">Npairs</th>
+<th style="text-align: right;">p.holm</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: right;">1.028455</td>
-<td style="text-align: right;">0.0541528</td>
-<td style="text-align: right;">0.0665084</td>
-<td style="text-align: right;">0.0490064</td>
+<td style="text-align: left;">m.9</td>
+<td style="text-align: right;">8.522699</td>
+<td style="text-align: right;">45</td>
 <td style="text-align: right;">0.1578348</td>
 </tr>
 <tr class="even">
-<td style="text-align: right;">1.079433</td>
-<td style="text-align: right;">0.0568088</td>
-<td style="text-align: right;">0.0708253</td>
-<td style="text-align: right;">0.0513719</td>
+<td style="text-align: left;">m.14</td>
+<td style="text-align: right;">14.127058</td>
+<td style="text-align: right;">55</td>
 <td style="text-align: right;">0.0093978</td>
 </tr>
 <tr class="odd">
-<td style="text-align: right;">1.154488</td>
-<td style="text-align: right;">0.0591550</td>
-<td style="text-align: right;">0.0761548</td>
-<td style="text-align: right;">0.0601698</td>
+<td style="text-align: left;">m.all</td>
+<td style="text-align: right;">22.331835</td>
+<td style="text-align: right;">66</td>
 <td style="text-align: right;">0.0001514</td>
 </tr>
 </tbody>
@@ -885,6 +894,337 @@ items.16 items.16 416 0.8557692 -2.5673075 -2.5673075           1</code></pre>
 <p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-25-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
+</section>
+<section id="strada-2-bis" class="level2">
+<h2 class="anchored" data-anchor-id="strada-2-bis">Strada 2 bis</h2>
+<p>Per scrupolo, voglio vedere cosa succedo se elimino l’item 7</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">maxX2</th>
+<th style="text-align: right;">Npairs</th>
+<th style="text-align: right;">p.holm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">m.7</td>
+<td style="text-align: right;">13.43125</td>
+<td style="text-align: right;">55</td>
+<td style="text-align: right;">0.0136107</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">m.all</td>
+<td style="text-align: right;">22.33183</td>
+<td style="text-align: right;">66</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">X100.MADCOV</th>
+<th style="text-align: right;">SRMR</th>
+<th style="text-align: right;">SRMSR</th>
+<th style="text-align: right;">MADaQ3</th>
+<th style="text-align: right;">pmaxX2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">m.7</td>
+<td style="text-align: right;">1.122755</td>
+<td style="text-align: right;">0.0594641</td>
+<td style="text-align: right;">0.0748610</td>
+<td style="text-align: right;">0.0559242</td>
+<td style="text-align: right;">0.0136107</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">m.all</td>
+<td style="text-align: right;">1.154488</td>
+<td style="text-align: right;">0.0591550</td>
+<td style="text-align: right;">0.0761548</td>
+<td style="text-align: right;">0.0601698</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>**** Calculate Residuals 
+**** Calculate Counts 
+**** Calculate Covariances </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] item   index  p      p.holm
+&lt;0 rows&gt; (or 0-length row.names)</code></pre>
+</div>
+</div>
+<p>Dipendenza locale:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>        col     row        val
+42 items.12 items.9 -0.2353237</code></pre>
+</div>
+</div>
+<p>Sono due matrici colorate (e stesse due che ottengo togliendo l’item 14), non facenti parte della stessa coppia. Rimango dell’idea che sia meglio togliere la 9 perché è leggermente più facile:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>             item   N         M   xsi.item AXsi_.Cat1 B.Cat1.Dim1
+items.17 items.17 419 0.4391408  0.3470297  0.3470297           1
+items.14 items.14 420 0.5333333 -0.1977643 -0.1977643           1
+items.12 items.12 420 0.6071429 -0.6357620 -0.6357620           1
+items.10 items.10 421 0.6342043 -0.8190297 -0.8190297           1
+items.13 items.13 420 0.6476190 -0.9040221 -0.9040221           1
+items.15 items.15 416 0.6947115 -1.2089881 -1.2089881           1
+items.9   items.9 419 0.7613365 -1.6709376 -1.6709376           1
+items.19 items.19 417 0.8249400 -2.2199297 -2.2199297           1
+items.6   items.6 420 0.8261905 -2.2387335 -2.2387335           1
+items.8   items.8 419 0.8305489 -2.2746546 -2.2746546           1
+items.16 items.16 416 0.8557692 -2.5358045 -2.5358045           1</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">maxX2</th>
+<th style="text-align: right;">Npairs</th>
+<th style="text-align: right;">p.holm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">m.9</td>
+<td style="text-align: right;">9.312936</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">0.1023937</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">m.7</td>
+<td style="text-align: right;">13.431253</td>
+<td style="text-align: right;">55</td>
+<td style="text-align: right;">0.0136107</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">m.all</td>
+<td style="text-align: right;">22.331835</td>
+<td style="text-align: right;">66</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">X100.MADCOV</th>
+<th style="text-align: right;">SRMR</th>
+<th style="text-align: right;">SRMSR</th>
+<th style="text-align: right;">MADaQ3</th>
+<th style="text-align: right;">pmaxX2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">m.9</td>
+<td style="text-align: right;">1.071934</td>
+<td style="text-align: right;">0.0569354</td>
+<td style="text-align: right;">0.0697633</td>
+<td style="text-align: right;">0.0541341</td>
+<td style="text-align: right;">0.1023937</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">m.7</td>
+<td style="text-align: right;">1.122755</td>
+<td style="text-align: right;">0.0594641</td>
+<td style="text-align: right;">0.0748610</td>
+<td style="text-align: right;">0.0559242</td>
+<td style="text-align: right;">0.0136107</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">m.all</td>
+<td style="text-align: right;">1.154488</td>
+<td style="text-align: right;">0.0591550</td>
+<td style="text-align: right;">0.0761548</td>
+<td style="text-align: right;">0.0601698</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Ora il modello fitta in tutto e per tutto. controllo la dipendenza locale:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] col row val
+&lt;0 rows&gt; (or 0-length row.names)</code></pre>
+</div>
+</div>
+<p>Posso investigare la DIF</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 12%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 12%">
+<col style="width: 9%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">LordChi</th>
+<th style="text-align: left;">p.adj</th>
+<th style="text-align: left;">bF</th>
+<th style="text-align: left;">se.b.</th>
+<th style="text-align: left;">bR</th>
+<th style="text-align: left;">se.b..1</th>
+<th style="text-align: left;">dif</th>
+<th style="text-align: left;">deltaLord</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">items.6</td>
+<td style="text-align: left;">0.22</td>
+<td style="text-align: left;">0.802</td>
+<td style="text-align: left;">-2.92</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-3.07</td>
+<td style="text-align: left;">0.26</td>
+<td style="text-align: left;">0.15</td>
+<td style="text-align: left;">-0.36</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.13</td>
+<td style="text-align: left;">1.72</td>
+<td style="text-align: left;">0.316</td>
+<td style="text-align: left;">-1.84</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.49</td>
+<td style="text-align: left;">0.17</td>
+<td style="text-align: left;">-0.35</td>
+<td style="text-align: left;">0.82</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.14</td>
+<td style="text-align: left;">1.90</td>
+<td style="text-align: left;">0.316</td>
+<td style="text-align: left;">-1.18</td>
+<td style="text-align: left;">0.22</td>
+<td style="text-align: left;">-0.81</td>
+<td style="text-align: left;">0.15</td>
+<td style="text-align: left;">-0.37</td>
+<td style="text-align: left;">0.88</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.8</td>
+<td style="text-align: left;">3.82</td>
+<td style="text-align: left;">0.253</td>
+<td style="text-align: left;">-2.77</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-3.48</td>
+<td style="text-align: left;">0.30</td>
+<td style="text-align: left;">0.71</td>
+<td style="text-align: left;">-1.66</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.15</td>
+<td style="text-align: left;">0.00</td>
+<td style="text-align: left;">1.000</td>
+<td style="text-align: left;">-1.95</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.95</td>
+<td style="text-align: left;">0.19</td>
+<td style="text-align: left;">0.00</td>
+<td style="text-align: left;">0.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.16</td>
+<td style="text-align: left;">2.86</td>
+<td style="text-align: left;">0.302</td>
+<td style="text-align: left;">-3.49</td>
+<td style="text-align: left;">0.22</td>
+<td style="text-align: left;">-2.93</td>
+<td style="text-align: left;">0.25</td>
+<td style="text-align: left;">-0.56</td>
+<td style="text-align: left;">1.32</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.10</td>
+<td style="text-align: left;">0.00</td>
+<td style="text-align: left;">1.000</td>
+<td style="text-align: left;">-1.54</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.55</td>
+<td style="text-align: left;">0.17</td>
+<td style="text-align: left;">0.00</td>
+<td style="text-align: left;">0.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.17</td>
+<td style="text-align: left;">8.73</td>
+<td style="text-align: left;">0.031</td>
+<td style="text-align: left;">0.54</td>
+<td style="text-align: left;">0.35</td>
+<td style="text-align: left;">-0.59</td>
+<td style="text-align: left;">0.15</td>
+<td style="text-align: left;">1.13</td>
+<td style="text-align: left;">-2.66</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.12</td>
+<td style="text-align: left;">1.13</td>
+<td style="text-align: left;">0.412</td>
+<td style="text-align: left;">-1.54</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.26</td>
+<td style="text-align: left;">0.16</td>
+<td style="text-align: left;">-0.28</td>
+<td style="text-align: left;">0.67</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.19</td>
+<td style="text-align: left;">1.83</td>
+<td style="text-align: left;">0.316</td>
+<td style="text-align: left;">-3.14</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-2.71</td>
+<td style="text-align: left;">0.23</td>
+<td style="text-align: left;">-0.42</td>
+<td style="text-align: left;">0.99</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>C’è qualcosa che non va nella stima dei parametri</p>
+<p>Graficamente:</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-33-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>Mi convince di più l’altra soluzione perché è più equilibrata (tolgo una colorata e una bn) e soprattutto le stime dei parametri hanno più senso.</p>
 </section>
 </section>
 

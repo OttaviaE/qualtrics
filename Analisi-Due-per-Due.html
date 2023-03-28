@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="it" xml:lang="it"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.335">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Ottavia">
+
+<title>Analisi matrici 2 \times2</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="Analisi-Due-per-Due_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Analisi-Due-per-Due_files/libs/quarto-html/quarto.js"></script>
+<script src="Analisi-Due-per-Due_files/libs/quarto-html/popper.min.js"></script>
+<script src="Analisi-Due-per-Due_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Analisi-Due-per-Due_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Analisi-Due-per-Due_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Analisi-Due-per-Due_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Analisi-Due-per-Due_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Analisi-Due-per-Due_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Analisi-Due-per-Due_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-full toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Indice del contenuto</h2>
+   
+  <ul>
+  <li><a href="#introduzione" id="toc-introduzione" class="nav-link active" data-scroll-target="#introduzione">Introduzione</a></li>
+  <li><a href="#tempi-di-risposta" id="toc-tempi-di-risposta" class="nav-link" data-scroll-target="#tempi-di-risposta">Tempi di risposta</a>
+  <ul class="collapse">
+  <li><a href="#tempi-di-risposta-ed-accuratezze" id="toc-tempi-di-risposta-ed-accuratezze" class="nav-link" data-scroll-target="#tempi-di-risposta-ed-accuratezze">Tempi di risposta ed accuratezze</a></li>
+  </ul></li>
+  <li><a href="#distrattori" id="toc-distrattori" class="nav-link" data-scroll-target="#distrattori">Distrattori</a></li>
+  <li><a href="#analisi-differential-item-functioning" id="toc-analisi-differential-item-functioning" class="nav-link" data-scroll-target="#analisi-differential-item-functioning">Analisi Differential Item Functioning</a>
+  <ul class="collapse">
+  <li><a href="#fit-del-modello" id="toc-fit-del-modello" class="nav-link" data-scroll-target="#fit-del-modello">Fit del modello</a>
+  <ul class="collapse">
+  <li><a href="#i-parametri" id="toc-i-parametri" class="nav-link" data-scroll-target="#i-parametri">I parametri</a></li>
+  </ul></li>
+  <li><a href="#dif-analysis-lord" id="toc-dif-analysis-lord" class="nav-link" data-scroll-target="#dif-analysis-lord">DIF analysis (Lord)</a></li>
+  <li><a href="#strada-1" id="toc-strada-1" class="nav-link" data-scroll-target="#strada-1">Strada 1</a></li>
+  <li><a href="#strada-2" id="toc-strada-2" class="nav-link" data-scroll-target="#strada-2">Strada 2</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content column-page-right" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Analisi matrici <span class="math inline">\(2 \times2\)</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Autore/a</div>
+    <div class="quarto-title-meta-contents">
+             <p>Ottavia </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Data di Pubblicazione</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">28 marzo 2023</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="introduzione" class="level1">
+<h1>Introduzione</h1>
+<p>In questo file sono riportate alcune analisi effettuate sulle matrici <span class="math inline">\(2\times 2\)</span> dei bambini, in particolare considerando le coppie di matrici colorate:</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: center;">id_question</th>
+<th style="text-align: center;">couple</th>
+<th style="text-align: center;">color</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">13</td>
+<td style="text-align: center;">6.13</td>
+<td style="text-align: center;">BN</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">12.19</td>
+<td style="text-align: center;">Color</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">15</td>
+<td style="text-align: center;">8.15</td>
+<td style="text-align: center;">BN</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">6.13</td>
+<td style="text-align: center;">Color</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">9</td>
+<td style="text-align: center;">9.16</td>
+<td style="text-align: center;">Color</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">17</td>
+<td style="text-align: center;">10.17</td>
+<td style="text-align: center;">BN</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">14</td>
+<td style="text-align: center;">7.14</td>
+<td style="text-align: center;">BN</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">10.17</td>
+<td style="text-align: center;">Color</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">7.14</td>
+<td style="text-align: center;">Color</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">8.15</td>
+<td style="text-align: center;">Color</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">19</td>
+<td style="text-align: center;">12.19</td>
+<td style="text-align: center;">BN</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">16</td>
+<td style="text-align: center;">9.16</td>
+<td style="text-align: center;">BN</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>I dati sono del 26 Marzo e contengono le osservazioni su 422. Relativamente alle scolarità:</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: center;">anni_scolarita</th>
+<th style="text-align: center;">n</th>
+<th style="text-align: center;">new.scol</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">138</td>
+<td style="text-align: center;">YY</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">99</td>
+<td style="text-align: center;">Y</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">79</td>
+<td style="text-align: center;">Y</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">46</td>
+<td style="text-align: center;">Y</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">60</td>
+<td style="text-align: center;">Y</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Per le analisi più avanti faccio riferimento alla nuova categorizzazione di scuola “YY” (prescolari) vs “Y” (tutti gli altri bambini).</p>
+</section>
+<section id="tempi-di-risposta" class="level1">
+<h1>Tempi di risposta</h1>
+<p>Confronto tempi di risposta per ogni coppia di item considerando la scolarità</p>
+<div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">Medie e sd</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">Boxplot</a></li></ul>
+<div class="tab-content">
+<div id="tabset-1-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-1-1-tab">
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</div>
+<div id="tabset-1-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-2-tab">
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<section id="tempi-di-risposta-ed-accuratezze" class="level2">
+<h2 class="anchored" data-anchor-id="tempi-di-risposta-ed-accuratezze">Tempi di risposta ed accuratezze</h2>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+</section>
+<section id="distrattori" class="level1">
+<h1>Distrattori</h1>
+<p>Ho focalizzato l’attenzione sui distrattori per cercare di capire se effettivamente la scelta di un distrattore piuttosto che un altro può cambiare in base alla presenza del colore.</p>
+<div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-2-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-1" role="tab" aria-controls="tabset-2-1" aria-selected="true" href="">Macro distrattori</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-2-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-2" role="tab" aria-controls="tabset-2-2" aria-selected="false" href="">Distrattori (dettaglio )</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-2-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-3" role="tab" aria-controls="tabset-2-3" aria-selected="false" href="">Macro distrattori e scolarità</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-2-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-2-4" role="tab" aria-controls="tabset-2-4" aria-selected="false" href="">Distrattori (dettaglio) e scolarità</a></li></ul>
+<div class="tab-content">
+<div id="tabset-2-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-2-1-tab">
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</div>
+<div id="tabset-2-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-2-2-tab">
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</div>
+<div id="tabset-2-3" class="tab-pane" role="tabpanel" aria-labelledby="tabset-2-3-tab">
+<p>Nei grafici che seguono ho tolto la risposta corretta</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="672"></p>
+</div>
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-8-2.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</div>
+<div id="tabset-2-4" class="tab-pane" role="tabpanel" aria-labelledby="tabset-2-4-tab">
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
+</div>
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-9-2.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="analisi-differential-item-functioning" class="level1">
+<h1>Analisi Differential Item Functioning</h1>
+<p>Ho preso solo gli item che costituiscono le coppie e ho stimato il modello di Rasch. Sulla base dei risulttai del modello, ho stimato il possibile Differential Item Functioning tra il gruppo di bambini prescolari (YY) e gli altri bambini.</p>
+<section id="fit-del-modello" class="level2">
+<h2 class="anchored" data-anchor-id="fit-del-modello">Fit del modello</h2>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: right;">maxX2</th>
+<th style="text-align: right;">Npairs</th>
+<th style="text-align: right;">p.holm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">22.33183</td>
+<td style="text-align: right;">66</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: right;">X100.MADCOV</th>
+<th style="text-align: right;">SRMR</th>
+<th style="text-align: right;">SRMSR</th>
+<th style="text-align: right;">MADaQ3</th>
+<th style="text-align: right;">pmaxX2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1.154488</td>
+<td style="text-align: right;">0.059155</td>
+<td style="text-align: right;">0.0761548</td>
+<td style="text-align: right;">0.0601698</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Nonostante il chi quadro sia significativo, non ha una fit pessima.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Tutti gli item fittano al modello (secondo RMSD)</code></pre>
+</div>
+</div>
+<p>, mentre secondo il chi quadro:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>**** Calculate Residuals 
+**** Calculate Counts 
+**** Calculate Covariances </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      item index            p       p.holm
+3  items.7     3 1.144823e-11 1.373788e-10
+4 items.14     4 1.144823e-11 1.373788e-10</code></pre>
+</div>
+</div>
+<p>Dipendenza locale:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>        col      row        val
+6  items.14  items.7  0.2633171
+19  items.9 items.14 -0.2029468
+52 items.12  items.9 -0.2195817</code></pre>
+</div>
+</div>
+<section id="i-parametri" class="level3">
+<h3 class="anchored" data-anchor-id="i-parametri">I parametri</h3>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+</section>
+<section id="dif-analysis-lord" class="level2">
+<h2 class="anchored" data-anchor-id="dif-analysis-lord">DIF analysis (Lord)</h2>
+<p>Calcolo il delta di Lord e considero il gruppo Y come gruppo reference</p>
+<p>Posso prendere due strade:</p>
+<ol type="1">
+<li><p>Faccio l’analisi DIF “ignorando” il fatto che ci sono item con dipendenza locale (STRADA 1)</p></li>
+<li><p>Pulisco prima gli item che non funzionano bene e poi faccio l’analisi DIF (STRADA 2)</p></li>
+</ol>
+<p>Faccio entrambe le cose</p>
+</section>
+<section id="strada-1" class="level2">
+<h2 class="anchored" data-anchor-id="strada-1">Strada 1</h2>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 12%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 12%">
+<col style="width: 9%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">LordChi</th>
+<th style="text-align: left;">p.adj</th>
+<th style="text-align: left;">bF</th>
+<th style="text-align: left;">se.b.</th>
+<th style="text-align: left;">bR</th>
+<th style="text-align: left;">se.b..1</th>
+<th style="text-align: left;">dif</th>
+<th style="text-align: left;">deltaLord</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">items.6</td>
+<td style="text-align: left;">0.41</td>
+<td style="text-align: left;">0.645</td>
+<td style="text-align: left;">-2.86</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-3.07</td>
+<td style="text-align: left;">0.26</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-0.49</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.13</td>
+<td style="text-align: left;">1.28</td>
+<td style="text-align: left;">0.441</td>
+<td style="text-align: left;">-1.79</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.49</td>
+<td style="text-align: left;">0.17</td>
+<td style="text-align: left;">-0.30</td>
+<td style="text-align: left;">0.71</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.7</td>
+<td style="text-align: left;">0.38</td>
+<td style="text-align: left;">0.645</td>
+<td style="text-align: left;">-0.72</td>
+<td style="text-align: left;">0.24</td>
+<td style="text-align: left;">-0.90</td>
+<td style="text-align: left;">0.15</td>
+<td style="text-align: left;">0.18</td>
+<td style="text-align: left;">-0.42</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.14</td>
+<td style="text-align: left;">1.48</td>
+<td style="text-align: left;">0.441</td>
+<td style="text-align: left;">-1.14</td>
+<td style="text-align: left;">0.22</td>
+<td style="text-align: left;">-0.81</td>
+<td style="text-align: left;">0.15</td>
+<td style="text-align: left;">-0.33</td>
+<td style="text-align: left;">0.77</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.8</td>
+<td style="text-align: left;">4.42</td>
+<td style="text-align: left;">0.142</td>
+<td style="text-align: left;">-2.72</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-3.48</td>
+<td style="text-align: left;">0.30</td>
+<td style="text-align: left;">0.76</td>
+<td style="text-align: left;">-1.78</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.15</td>
+<td style="text-align: left;">0.03</td>
+<td style="text-align: left;">0.861</td>
+<td style="text-align: left;">-1.90</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.95</td>
+<td style="text-align: left;">0.19</td>
+<td style="text-align: left;">0.05</td>
+<td style="text-align: left;">-0.11</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.9</td>
+<td style="text-align: left;">5.90</td>
+<td style="text-align: left;">0.091</td>
+<td style="text-align: left;">-2.72</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-2.04</td>
+<td style="text-align: left;">0.19</td>
+<td style="text-align: left;">-0.68</td>
+<td style="text-align: left;">1.60</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.16</td>
+<td style="text-align: left;">2.26</td>
+<td style="text-align: left;">0.398</td>
+<td style="text-align: left;">-3.43</td>
+<td style="text-align: left;">0.22</td>
+<td style="text-align: left;">-2.94</td>
+<td style="text-align: left;">0.25</td>
+<td style="text-align: left;">-0.50</td>
+<td style="text-align: left;">1.17</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.10</td>
+<td style="text-align: left;">0.03</td>
+<td style="text-align: left;">0.861</td>
+<td style="text-align: left;">-1.50</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.55</td>
+<td style="text-align: left;">0.17</td>
+<td style="text-align: left;">0.05</td>
+<td style="text-align: left;">-0.11</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.17</td>
+<td style="text-align: left;">9.38</td>
+<td style="text-align: left;">0.026</td>
+<td style="text-align: left;">0.58</td>
+<td style="text-align: left;">0.35</td>
+<td style="text-align: left;">-0.59</td>
+<td style="text-align: left;">0.15</td>
+<td style="text-align: left;">1.17</td>
+<td style="text-align: left;">-2.76</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.12</td>
+<td style="text-align: left;">0.80</td>
+<td style="text-align: left;">0.555</td>
+<td style="text-align: left;">-1.50</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.26</td>
+<td style="text-align: left;">0.16</td>
+<td style="text-align: left;">-0.24</td>
+<td style="text-align: left;">0.56</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.19</td>
+<td style="text-align: left;">1.36</td>
+<td style="text-align: left;">0.441</td>
+<td style="text-align: left;">-3.08</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-2.72</td>
+<td style="text-align: left;">0.23</td>
+<td style="text-align: left;">-0.36</td>
+<td style="text-align: left;">0.86</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Graficamente:</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="strada-2" class="level2">
+<h2 class="anchored" data-anchor-id="strada-2">Strada 2</h2>
+<p>Prima cosa: Togliere gli item che non funzionano bene:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>        col      row        val
+6  items.14  items.7  0.2633171
+19  items.9 items.14 -0.2029468
+52 items.12  items.9 -0.2195817</code></pre>
+</div>
+</div>
+<p>Tolgo l’item 14 perché è lui quello che disturba di più e rifitto il modello:</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: right;">maxX2</th>
+<th style="text-align: right;">Npairs</th>
+<th style="text-align: right;">p.holm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">14.12706</td>
+<td style="text-align: right;">55</td>
+<td style="text-align: right;">0.0093978</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">22.33183</td>
+<td style="text-align: right;">66</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: right;">X100.MADCOV</th>
+<th style="text-align: right;">SRMR</th>
+<th style="text-align: right;">SRMSR</th>
+<th style="text-align: right;">MADaQ3</th>
+<th style="text-align: right;">pmaxX2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1.079433</td>
+<td style="text-align: right;">0.0568088</td>
+<td style="text-align: right;">0.0708253</td>
+<td style="text-align: right;">0.0513719</td>
+<td style="text-align: right;">0.0093978</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1.154488</td>
+<td style="text-align: right;">0.0591550</td>
+<td style="text-align: right;">0.0761548</td>
+<td style="text-align: right;">0.0601698</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>**** Calculate Residuals 
+**** Calculate Counts 
+**** Calculate Covariances </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] item   index  p      p.holm
+&lt;0 rows&gt; (or 0-length row.names)</code></pre>
+</div>
+</div>
+<p>Dipendenza locale:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>        col     row        val
+42 items.12 items.9 -0.2351768</code></pre>
+</div>
+</div>
+<p>Sono due matrici colorate, non facenti parte della stessa coppia. Tolgo la 9 perché è leggermente più facile:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>             item   N         M   xsi.item AXsi_.Cat1 B.Cat1.Dim1
+items.17 items.17 419 0.4391408  0.3509601  0.3509601           1
+items.7   items.7 420 0.5214286 -0.1365203 -0.1365203           1
+items.12 items.12 420 0.6071429 -0.6429799 -0.6429799           1
+items.10 items.10 421 0.6342043 -0.8295795 -0.8295795           1
+items.13 items.13 420 0.6476190 -0.9176554 -0.9176554           1
+items.15 items.15 416 0.6947115 -1.2230418 -1.2230418           1
+items.9   items.9 419 0.7613365 -1.6928380 -1.6928380           1
+items.19 items.19 417 0.8249400 -2.2479070 -2.2479070           1
+items.6   items.6 420 0.8261905 -2.2660942 -2.2660942           1
+items.8   items.8 419 0.8305489 -2.3018028 -2.3018028           1
+items.16 items.16 416 0.8557692 -2.5673075 -2.5673075           1</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: right;">maxX2</th>
+<th style="text-align: right;">Npairs</th>
+<th style="text-align: right;">p.holm</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">8.522699</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: right;">0.1578348</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">14.127058</td>
+<td style="text-align: right;">55</td>
+<td style="text-align: right;">0.0093978</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">22.331835</td>
+<td style="text-align: right;">66</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<thead>
+<tr class="header">
+<th style="text-align: right;">X100.MADCOV</th>
+<th style="text-align: right;">SRMR</th>
+<th style="text-align: right;">SRMSR</th>
+<th style="text-align: right;">MADaQ3</th>
+<th style="text-align: right;">pmaxX2</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1.028455</td>
+<td style="text-align: right;">0.0541528</td>
+<td style="text-align: right;">0.0665084</td>
+<td style="text-align: right;">0.0490064</td>
+<td style="text-align: right;">0.1578348</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1.079433</td>
+<td style="text-align: right;">0.0568088</td>
+<td style="text-align: right;">0.0708253</td>
+<td style="text-align: right;">0.0513719</td>
+<td style="text-align: right;">0.0093978</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">1.154488</td>
+<td style="text-align: right;">0.0591550</td>
+<td style="text-align: right;">0.0761548</td>
+<td style="text-align: right;">0.0601698</td>
+<td style="text-align: right;">0.0001514</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Ora il modello fitta in tutto e per tutto. controllo la dipendenza locale:</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] col row val
+&lt;0 rows&gt; (or 0-length row.names)</code></pre>
+</div>
+</div>
+<p>Posso investigare la DIF</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 12%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 12%">
+<col style="width: 9%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">LordChi</th>
+<th style="text-align: left;">p.adj</th>
+<th style="text-align: left;">bF</th>
+<th style="text-align: left;">se.b.</th>
+<th style="text-align: left;">bR</th>
+<th style="text-align: left;">se.b..1</th>
+<th style="text-align: left;">dif</th>
+<th style="text-align: left;">deltaLord</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">items.6</td>
+<td style="text-align: left;">0.11</td>
+<td style="text-align: left;">0.845</td>
+<td style="text-align: left;">-2.97</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-3.08</td>
+<td style="text-align: left;">0.26</td>
+<td style="text-align: left;">0.11</td>
+<td style="text-align: left;">-0.26</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.13</td>
+<td style="text-align: left;">2.27</td>
+<td style="text-align: left;">0.271</td>
+<td style="text-align: left;">-1.89</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.49</td>
+<td style="text-align: left;">0.17</td>
+<td style="text-align: left;">-0.40</td>
+<td style="text-align: left;">0.95</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.7</td>
+<td style="text-align: left;">0.07</td>
+<td style="text-align: left;">0.845</td>
+<td style="text-align: left;">-0.82</td>
+<td style="text-align: left;">0.24</td>
+<td style="text-align: left;">-0.90</td>
+<td style="text-align: left;">0.15</td>
+<td style="text-align: left;">0.08</td>
+<td style="text-align: left;">-0.18</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.8</td>
+<td style="text-align: left;">3.35</td>
+<td style="text-align: left;">0.231</td>
+<td style="text-align: left;">-2.83</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-3.49</td>
+<td style="text-align: left;">0.30</td>
+<td style="text-align: left;">0.66</td>
+<td style="text-align: left;">-1.55</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.15</td>
+<td style="text-align: left;">0.04</td>
+<td style="text-align: left;">0.845</td>
+<td style="text-align: left;">-2.00</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.94</td>
+<td style="text-align: left;">0.19</td>
+<td style="text-align: left;">-0.05</td>
+<td style="text-align: left;">0.13</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.16</td>
+<td style="text-align: left;">3.30</td>
+<td style="text-align: left;">0.231</td>
+<td style="text-align: left;">-3.54</td>
+<td style="text-align: left;">0.22</td>
+<td style="text-align: left;">-2.94</td>
+<td style="text-align: left;">0.25</td>
+<td style="text-align: left;">-0.60</td>
+<td style="text-align: left;">1.42</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.10</td>
+<td style="text-align: left;">0.04</td>
+<td style="text-align: left;">0.845</td>
+<td style="text-align: left;">-1.60</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.54</td>
+<td style="text-align: left;">0.17</td>
+<td style="text-align: left;">-0.05</td>
+<td style="text-align: left;">0.13</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.17</td>
+<td style="text-align: left;">7.85</td>
+<td style="text-align: left;">0.051</td>
+<td style="text-align: left;">0.49</td>
+<td style="text-align: left;">0.35</td>
+<td style="text-align: left;">-0.59</td>
+<td style="text-align: left;">0.15</td>
+<td style="text-align: left;">1.07</td>
+<td style="text-align: left;">-2.52</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">items.12</td>
+<td style="text-align: left;">1.63</td>
+<td style="text-align: left;">0.337</td>
+<td style="text-align: left;">-1.60</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-1.26</td>
+<td style="text-align: left;">0.16</td>
+<td style="text-align: left;">-0.34</td>
+<td style="text-align: left;">0.80</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">items.19</td>
+<td style="text-align: left;">2.23</td>
+<td style="text-align: left;">0.271</td>
+<td style="text-align: left;">-3.19</td>
+<td style="text-align: left;">0.21</td>
+<td style="text-align: left;">-2.72</td>
+<td style="text-align: left;">0.23</td>
+<td style="text-align: left;">-0.47</td>
+<td style="text-align: left;">1.10</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Graficamente:</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="Analisi-Due-per-Due_files/figure-html/unnamed-chunk-25-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copiato!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copiato!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

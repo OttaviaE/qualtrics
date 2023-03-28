@@ -1,0 +1,1402 @@
+---
+title: "matriKS Dati Adulti"
+author: "Ottavia"
+format: 
+  html: 
+    toc: true
+execute: 
+  eval: true
+  echo: false
+  warning: false
+  message: false
+  prompt: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r include = FALSE}
+setwd("D:/PRIN2020/qualtrics/psycAssist/Adulti")
+library(ggplot2)
+library(dplyr)
+library(lavaan)
+library(mokken)
+library(knitr)
+library(lubridate)
+library(car)
+# restituisce la dipendenza locale ----
+dip.local = function(model, cut = .20) {
+  temp_local = model$Q3.matr
+  index = which( upper.tri(temp_local,diag=F) , arr.ind = TRUE )
+  local = data.frame( col = dimnames(temp_local)[[2]][index[,2]] ,
+                      row = dimnames(temp_local)[[1]][index[,1]] ,
+                      val = temp_local[ index ] )
+  summary.local = local[abs(local$val) > cut, ]
+  return(summary.local)
+}
+# ridà i parametri degli item ordinati per proporzione di risposte corrette ----
+item.par = function(model) {
+  est = model$item 
+  est = est[order(est$M), ]
+  return(est)
+}
+# item fit basata sul chi quadro ----
+item.fit = function(model) {
+  temp.fit = tam.modelfit(model)
+  chi = temp.fit$chisquare.itemfit
+  chi = chi[chi$p.holm < .05, ]
+  return(chi)
+}
+guide = data.frame(id_question = 1:52, 
+                   tipo = rep(c("due.celle", "tre.celle"), c(3, 49)))
+
+file = "mat50_2023_03_26.csv"
+
+data = read.csv(file, 
+                header = T, sep = ",")
+
+data = data[!data$external_code %in% c("AB", "Pietro", 
+                                       "UTENTE01", "PROVA", "Prova"), ]
+data$id_question = data$id_question + 1
+
+data$response_vector = gsub('[\"]', "", data$response_vector)
+data$distractors = gsub(".*_", "", data$response_vector)
+data$distractors = gsub(".svg]", "", data$distractors)
+# macro_distractors contiene solo le macrocategorie di distrattori 
+data$macro_distractors = numeric(nrow(data))
+
+for (i in 1:nrow(data)) {
+  if(data[i, "distractors"] == "d.union" | data[i, "distractors"] == "diff1" | data[i, "distractors"] == "diff2" | data[i, "distractors"] == "diff") {
+    data[i, "macro_distractors"] = "D"
+  } else if (grepl("ic", data[i, "distractors"])  ==T) {
+    data[i, "macro_distractors"] = "IC"
+  } else if (grepl("wp", data[i, "distractors"])  ==T) {
+    data[i, "macro_distractors"] = "WP"
+  } else if (grepl("correct", data[i, "distractors"])  ==T){
+    data[i, "macro_distractors"] = "correct"
+  } else if (data[i, "distractors"] == "r.left" | data[i, "distractors"] == "r.top" | data[i, "distractors"] == "r.diag"){
+    data[i, "macro_distractors"] = "R"
+  }
+}
+
+# RICODIFICA SCOLARITà -----
+# ricodifico in: 
+# fino a 8 anni inclusi: primaria 
+# 9-13 anni (incluso): secondaria
+# maggior di 13 superiore 
+data$anni_scolarita = as.integer(data$anni_scolarita)
+data$scol = ifelse(data$anni_scolarita <=8, "primaria", 
+                   ifelse(data$anni_scolarita > 8 & data$anni_scolarita <= 13, 
+                          "secondaria", 
+                          "superiore"))
+
+# fa il check per vedere che  non ci siano proev
+#table(data$external_code)
+#table(data$id)
+
+
+# primo check per vedere la percentuale di risposte corrette 
+
+temp = data[, c("id", "id_question", "task_success")]
+
+
+temp$task_success = ifelse(temp$task_success == "True", 
+                           1, 0)
+wide.temp = reshape(temp, 
+                    idvar = "id", 
+                    timevar = "id_question", 
+                    direction = "wide")
+
+wide.temp$total_score = rowSums(wide.temp[,-1], na.rm = T)
+
+data$year = as.numeric(substring(as.Date(data$birth_date), first = 1, 4))
+
+data$yo = time_length(difftime(Sys.Date(), 
+                               as.Date(data$birth_date)), 
+                      "years")
+
+data$gen = character(nrow(data))
+
+for (i in 1:nrow(data)) {
+ if (data[i, "year"] > 1946 & data[i, "year"] <= 1964) {
+   data[i, "gen"] = "boomer"
+ } else if (data[i, "year"] > 1964 & data[i, "year"] <= 1980) {
+   data[i, "gen"] = "gen.x"
+ } else if (data[i, "year"] > 1980 & data[i, "year"] <= 1996) {
+   data[i, "gen"] = "gen.y"
+ } else if (data[i, "year"] > 1996 & data[i, "year"] <= 2012) {
+   data[i, "gen"] = "gen.z"
+ } else if (data[i, "year"] > 2012) {
+   data[i, "gen"] = "gen.alpha"
+ } else if (data[i, "year"] <=1946) {
+   data[i, "gen"] = "silent"
+ }
+}
+
+
+# dettagli soggetti -----
+small_sbj = data[, c("id", "anni_scolarita", 
+                     "gender", "diagnostic", "scol", 
+                     "year", "yo", "gen")]
+small_sbj = small_sbj %>% distinct()
+# recode disagi persone ------ 
+small_sbj$diagnostic = tolower(small_sbj$diagnostic)
+small_sbj$new.diag = ifelse(small_sbj$diagnostic == "", 
+                            "ok", 
+                            ifelse(grepl("disort", small_sbj$diagnostic), 
+                                   "DSA", 
+                                   ifelse(grepl("disless", small_sbj$diagnostic), 
+                                          "DSA", "altro")))
+
+wide.temp = merge(wide.temp, small_sbj)
+
+# mi serve solo per schematizzare gli anni scolastici 
+
+a = wide.temp[, c("anni_scolarita", "scol")]
+a = a %>% distinct()
+
+a = a[order(a$scol), ]
+wide.temp = wide.temp[order(wide.temp$total_score), ]
+wide.temp$new.id = 1:nrow(wide.temp)
+# calcolo dei tempi ----
+data$time.diff.item = difftime(data$end_time, 
+                               data$start_time, 
+                               units = "secs")
+data$time.diff.item = as.numeric(data$time.diff.item)
+sum.time =aggregate(time.diff.item ~ id, 
+                    data, sum)
+colnames(sum.time)[2] = "sum.time"
+sum.time$sum.time = as.numeric(sum.time$sum.time)
+
+# # unisco il dettaglio sui tempi al dataset ----
+data = merge(data, sum.time, by="id")
+# unisco anche i punteggi totali e il filter 
+
+wide.small = wide.temp[, c("id", "total_score")]
+
+data = merge(data, wide.small, by = "id")
+
+
+
+
+
+```
+
+
+# Introduzione 
+
+In questo file si trova un primo report sui dati degli adulti che hanno compilato matriks. Il file usato il `r Sys.Date()` è `r file`. SOno presenti le orsservazioni su `r length(unique(data$id))` soggetti. 
+
+
+Ho ricodificato le età sulla base delle generazioni: 
+
+
+- $\leq 1946$: Generazione silenziosa (1928-1945)
+- Baby boomers o "Boomers" (1946-1964)
+- Generazione X (1965-1980)
+- Generazione Y o "Millennials" (1981-1996)
+- Generazione Z o "Centennials" (1997-2012)
+- Generazione Alpha o "Screenagers" (2013-oggi)
+
+```{r}
+wide.temp %>% 
+  count(gen) %>% 
+  mutate(prop = prop.table(n)) %>% 
+  kable(align = "c")
+
+
+```
+
+
+Data la situazione PER IL MOMENTO, collasso insieme boomer, gen.x e gen.y: 
+```{r}
+wide.temp$new.gen = car::recode(wide.temp$gen , 
+                                "'boomer' = 'old.gen'; 
+                                'gen.x' = 'old.gen'; 
+                                'gen.y' = 'old.gen'")
+wide.temp %>% 
+  count(new.gen) %>% 
+  mutate(prop = prop.table(n)) %>% 
+  kable(align = "c")
+
+data$new.gen = car::recode(data$gen , 
+                                 "'boomer' = 'old.gen'; 
+                                'gen.x' = 'old.gen'; 
+                                'gen.y' = 'old.gen'")
+```
+
+
+
+Gli anni scolastici delle persone sono stati ricategorizzati in `r length(unique(wide.temp$scol))` livelli ricodificati come segue: 
+
+```{r}
+knitr::kable(a, row.names = FALSE, align = "c")
+```
+
+
+### Scolarità: 
+
+```{r}
+wide.temp %>% 
+  count(scol) %>% 
+  mutate(prop = prop.table(n)) %>% 
+  kable(align="c")
+```
+
+
+### Genere: 
+
+
+```{r}
+wide.temp %>% 
+  count(gender) %>% 
+  mutate(prop = n/nrow(wide.temp)) %>% 
+  kable(align="c")
+```
+
+### Diagnosi: 
+
+```{r}
+wide.temp %>%
+  count(new.diag) %>%
+  mutate(prop = n/nrow(wide.temp))  %>% 
+  kable(align="c") 
+```
+
+
+
+### Genere per scolarità: 
+
+```{r}
+wide.temp %>%
+  count(scol, gender) %>%
+  group_by(scol) %>%          
+  mutate(prop = n/nrow(wide.temp)) %>% 
+  kable(align="c") 
+```
+
+### Genere ed età 
+
+```{r}
+wide.temp %>%
+  count(new.gen, gender) %>%
+  group_by(gender) %>%          
+  mutate(prop = n/nrow(wide.temp)) %>% 
+  kable(align="c") 
+```
+
+
+# Soggetti 
+
+In questa sezione sono riportate le statistiche descrittive relative ai soggetti.
+
+## Singoli soggetti
+
+::: {.panel-tabset}
+
+## Score generale 
+
+```{r}
+ggplot(wide.temp, 
+       aes(x=reorder(id, total_score), y = total_score)) + geom_point() + ylab("Score accuratezza") +
+  theme(axis.title.x = element_blank()) + coord_flip() +
+  geom_hline(aes(yintercept = 52))
+```
+
+
+## Score e scolarità
+
+```{r}
+ggplot(wide.temp, 
+       aes(x=reorder(id, total_score), 
+           y = total_score,  
+           color = as.factor(scol), 
+           shape = as.factor(scol))) + geom_point(size =3, alpha = .8) +
+   ylab("Score accuratezza") +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(), 
+        legend.position = "bottom")  + theme_light() + coord_flip()
+```
+
+
+## Score ed età
+
+```{r}
+ggplot(wide.temp, 
+       aes(x=reorder(id, total_score), 
+           y = total_score,  
+           color = as.factor(gen), 
+           shape = as.factor(gen))) + geom_point(size =3, alpha = .8) +
+   ylab("Score accuratezza") +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(), 
+        legend.position = "bottom")  + theme_light() + coord_flip()
+```
+
+
+
+## Score e diagnosi 
+
+```{r}
+ggplot(wide.temp, 
+       aes(x=reorder(id, total_score), 
+           y = total_score,  
+           color = new.gen, shape = new.diag)) + geom_point(size = 2) + ylab("Score accuratezza") +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(), 
+        legend.position = "bottom")  + coord_flip() + 
+  scale_color_brewer(palette = "Dark2")
+
+
+
+```
+
+
+:::
+
+## Soggetti aggregati 
+
+::: {.panel-tabset}
+
+## Score accuratezza: Scolarità
+
+```{r}
+ggplot(data, 
+       aes(x = scol, y = total_score, color = new.gen)) + geom_boxplot() + theme_light()
+```
+
+
+
+## Score accuratezza: Genere
+
+```{r}
+ggplot(data, 
+       aes(x = gender, y = total_score)) + geom_boxplot() + theme_light()
+```
+
+
+
+
+## Score accuratezza: Genere e scolarità
+
+```{r}
+ggplot(data, 
+       aes(x = scol, y = total_score, 
+           color = gender)) + geom_boxplot() + theme_light()
+
+# scommentare per vedere il grafico con i punti e le righe 
+
+# score_sbj_gender = data %>% 
+#   group_by(scol, gender) %>% 
+#   summarise(mean = mean(total_score), sd = sd(total_score)) 
+# 
+# ggplot(score_sbj_gender, 
+#        aes(x = scol, y = mean, color = gender, group = gender)) + 
+#   geom_point(size = 3) + 
+#   geom_errorbar(aes(x = scol, 
+#                     ymin = mean-sd, 
+#                     ymax = mean+sd),width=0.2, size=1) +
+#   geom_line(aes(y = mean))
+
+```
+
+
+## Score accuratezza: Genere ed età (generazione)
+
+```{r}
+data$new.gen = factor(data$new.gen, 
+                      levels = c("old.gen", "gen.z"))
+ggplot(data, 
+       aes(x = new.gen, y = total_score, 
+           color = gender)) + geom_boxplot() + theme_light()
+
+# scommentare per vedere il grafico con i punti e le righe 
+
+score_sbj_gender = data %>%
+  group_by(new.gen, gender) %>%
+  summarise(mean = mean(total_score), sd = sd(total_score))
+
+ggplot(score_sbj_gender,
+       aes(x = new.gen, y = mean, color = gender, group = gender)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(x = new.gen,
+                    ymin = mean-sd,
+                    ymax = mean+sd),width=0.2, size=1) +
+  geom_line(aes(y = mean))
+
+```
+
+
+
+:::
+
+
+## Tempi di risposta 
+
+Sull'asse delle x sono riportati i soggetti ordinati secondo il loro total score (dal più basso al più alto), sull'asse delle y sono riportati i tempi di risposta di ogni soggetto. A livello puramente descrittivo ho riportato anche il genere delle persone.
+
+```{r}
+wide.temp = merge(wide.temp, sum.time)
+
+ggplot(wide.temp, 
+       aes(x = reorder(id, total_score), 
+           y = sum.time, color = gender, shape = gender)) + 
+  geom_point(size =2) + theme_light() + 
+  ylab("RT") + theme(
+    axis.title.x = element_blank(), 
+    axis.text.x = element_blank()
+  ) + geom_smooth(method = "lm")
+
+```
+
+
+Per cercare di avere qualche insight in più, ho suddiviso i soggetti secondo la distribuzione quartilica del loro total score: 
+
+- $\leq Q1$ : Pessimi
+-  $Q1 < x \leq Q2$: scarsi 
+-  $Q2 < x \leq Q3$: bravi
+- $> Q3$: top
+
+Che riuslta in: 
+
+```{r}
+cut.sbj = quantile(wide.temp$total_score)
+
+data$ab.sbj = ifelse(data$total_score <= cut.sbj[2], 
+                     "pessimi", 
+                     ifelse(data$total_score > cut.sbj[2] & data$total_score <= cut.sbj[3], 
+                            "scarsi", 
+                            ifelse(data$total_score > cut.sbj[3] & data$total_score <= cut.sbj[4], 
+                                   "bravi", "top")))
+
+wide.temp$ab.sbj = ifelse(wide.temp$total_score <= cut.sbj[2], 
+                          "pessimi", 
+                          ifelse(wide.temp$total_score > cut.sbj[2] & wide.temp$total_score <= cut.sbj[3], 
+                                 "scarsi", 
+                                 ifelse(wide.temp$total_score > cut.sbj[3] & wide.temp$total_score <= cut.sbj[4], 
+                                        "bravi", "top")))
+
+wide.temp$ab.sbj = factor(wide.temp$ab.sbj, 
+                          levels = c("pessimi", 
+                                     "scarsi", 
+                                     "bravi", "top"))
+
+wide.temp %>% 
+  count(ab.sbj) %>% 
+    mutate(prop = prop.table(n)) %>% 
+  kable(align="c") 
+
+
+```
+
+relativamete al genere: 
+
+```{r}
+wide.temp %>% 
+  count(ab.sbj, gender) %>%
+  group_by(ab.sbj) %>%
+    mutate(prop = n/nrow(wide.temp)) %>% 
+  kable(align="c") 
+```
+
+
+Come si distribuiscono le diverse scolarità nei livelli di bravura
+
+```{r}
+ab_scol = data %>% 
+  group_by(ab.sbj, scol) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n))
+ab_scol$scol = factor(ab_scol$scol, 
+                      levels = c("superiore", "secondaria", "primaria"))
+ab_scol$ab.sbj = factor(ab_scol$ab.sbj, 
+                        levels = c("pessimi", "scarsi" ,
+                                  "bravi", "top"))
+
+ggplot(ab_scol, 
+       aes(x= ab.sbj, 
+           fill = scol, 
+           y = prop)) + geom_bar(stat = "identity") + scale_fill_brewer(palette = "Dark2")
+```
+
+
+E nelle età (generazione):
+
+
+```{r}
+ab_gen = data %>% 
+  group_by(ab.sbj, new.gen) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = n/sum(n))
+
+ab_gen$ab.sbj = factor(ab_gen$ab.sbj, 
+                        levels = c("pessimi", "scarsi" ,
+                                  "bravi", "top"))
+
+
+ggplot(ab_gen, 
+      aes(x = ab.sbj, y = prop, fill = new.gen)) + geom_bar(stat = "identity")
+
+
+
+```
+
+
+::: {.panel-tabset}
+## Genere, abilità e tempo di risposta 
+
+```{r}
+sbj_time_gender = data %>% 
+  group_by(ab.sbj, gender) %>% 
+  summarise(mean = mean(sum.time), sd = sd(sum.time))
+sbj_time_gender$ab.sbj = factor(sbj_time_gender$ab.sbj, 
+                                levels = c("pessimi", "scarsi", 
+                                           "bravi", "top"))
+
+ggplot(sbj_time_gender, 
+       aes(x = ab.sbj, y = mean, 
+           color = gender,shape = gender, 
+           group = gender, 
+           linetype = gender)) + 
+  geom_point(size = 3) + 
+geom_line(aes(y = mean)) + theme_light()
+```
+
+
+##  Genere, abilità e tempo di risposta (sd)
+
+```{r}
+ggplot(sbj_time_gender, 
+       aes(x = ab.sbj, y = mean, color = gender, group = gender)) + 
+  geom_point(size = 3) + 
+  geom_errorbar(aes(x = ab.sbj, 
+                    ymin = mean-sd, 
+                    ymax = mean+sd),width=0.2, size=1) +
+  geom_line(aes(y = mean)) + theme_light()
+```
+
+
+## Genere, scolarità e tempi di risposta
+```{r}
+sbj_time_gender_scol = data %>% 
+  group_by(gender, scol) %>% 
+  summarise(mean = mean(sum.time), sd = sd(sum.time))
+# sbj_time_gender$ab.sbj = factor(sbj_time_gender$ab.sbj, 
+#                                 levels = c("pessimi", "scarsi", 
+#                                            "bravi", "top"))
+
+ggplot(sbj_time_gender_scol, 
+       aes(x = scol, y = mean, 
+           color = gender, shape = gender, 
+           group = gender, 
+           linetype = gender)) + 
+  geom_point(size = 3)  + theme_light() +
+  geom_line(aes(y = mean)) 
+```
+
+
+## Genere, scolarità e tempi di risposta (SD)
+
+
+```{r}
+ggplot(sbj_time_gender_scol, 
+       aes(x = scol, y = mean, color = gender, group = gender)) + 
+  geom_point(size = 3)  + theme_light() +
+  geom_line(aes(y = mean))  + geom_errorbar(aes(x = scol, 
+                    ymin = mean-sd, 
+                    ymax = mean+sd),width=0.2, size=1)
+```
+
+
+
+## Genere, generazione, tempi di risposta
+
+```{r}
+sbj_time_gender_generation = data %>% 
+  group_by(gender, new.gen) %>% 
+  summarise(mean = mean(sum.time), sd = sd(sum.time))
+# sbj_time_gender$ab.sbj = factor(sbj_time_gender$ab.sbj, 
+#                                 levels = c("pessimi", "scarsi", 
+#                                            "bravi", "top"))
+
+sbj_time_gender_generation$new.gen = factor(sbj_time_gender_generation$new.gen, 
+                                            levels = c("old.gen", 
+                                                       "gen.y", 
+                                                       "gen.z"))
+
+ggplot(sbj_time_gender_generation, 
+       aes(x = new.gen, y = mean, 
+           color = gender, shape = gender, 
+           group = gender, 
+           linetype = gender)) + 
+  geom_point(size = 3)  + theme_light() +
+  geom_line(aes(y = mean)) + ylim(450, 2500)
+```
+
+
+## enere, generazione, tempi di risposta (SD)
+
+
+```{r}
+ggplot(sbj_time_gender_generation, 
+       aes(x = new.gen, y = mean, color = gender, group = gender)) + 
+  geom_point(size = 3)  + theme_light() +
+  geom_line(aes(y = mean))  + geom_errorbar(aes(x = new.gen, 
+                    ymin = mean-sd, 
+                    ymax = mean+sd),width=0.2, size=1) + ylim(450, 2500)
+```
+
+
+
+## Scolarità, abilità e tempi di risposta (boxplot) 
+
+```{r}
+
+data$ab.sbj = factor(data$ab.sbj, 
+                     levels = c("pessimi", 
+                                "scarsi", 
+                                "bravi", 
+                                "top"))
+ggplot(data, 
+       aes(x = ab.sbj, y  = sum.time, 
+color = scol)) + geom_boxplot() + theme_light()
+
+```
+
+
+
+## Età, abilità e tempi di risposta  (boxplot)
+
+```{r}
+
+data$new.gen = factor(data$new.gen, 
+                                            levels = c("old.gen", 
+                                                       "gen.y", 
+                                                       "gen.z"))
+ggplot(data, 
+       aes(x = ab.sbj, y  = sum.time, 
+color = new.gen)) + geom_boxplot() + theme_light()
+
+```
+
+## Età, abilità, genere e tempi di risposta  (boxplot)
+
+```{r}
+
+data$new.gen = factor(data$new.gen, 
+                                            levels = c("old.gen", 
+                                                       "gen.y", 
+                                                       "gen.z"))
+data$new.var = paste(data$gender,  data$new.gen, sep = ".")
+
+data$new.var = factor(data$new.var, 
+                      levels = c("F.old.gen", "F.gen.z", 
+                                 "M.old.gen", "M.gen.z"))
+my.col = RColorBrewer::brewer.pal(10, "Paired")[c(5:6, 1:2)]
+ggplot(data, 
+       aes(x = ab.sbj, y  = sum.time, 
+color = new.var)) + geom_boxplot() + theme_light() + scale_color_manual(values = my.col)
+
+```
+
+
+
+:::
+
+# Item 
+
+In questa sezione sono riportati i risultati relativi all'item probability
+
+```{r}
+data$correct = ifelse(data$task_success == "True", 1, 0)
+
+item_prob = aggregate(correct ~ id_question, data = data, mean)
+
+# ora considero tutto attraverso le scolarità 
+item_time = aggregate(time.diff.item ~ id_question, data = data, mean)
+
+item_char = merge(item_prob, item_time)
+```
+
+::: {.panel-tabset}
+## Item probability
+
+Item ordinati dal più difficile al più facile sull'asse delle y, item probability sull'asse delle x. 
+
+```{r}
+ggplot(item_prob[order(item_prob$correct), ], 
+       aes( x = reorder(id_question, correct), y = correct)) + geom_point() + theme_light() +coord_flip()
+```
+
+
+
+## Item probability e tempo
+
+Item ordinati dal più difficile al più facile sull'asse delle x, tempo per ogni item sull'asse delle y.
+
+```{r}
+ggplot(item_char, aes(x=reorder(id_question, correct), 
+                      y = time.diff.item)) + geom_point() + theme_light()
+```
+
+
+## Item probability e scolarità 
+
+```{r}
+
+item_prob_scol = data %>% 
+  group_by(id_question, scol) %>% 
+  summarise(correct = mean(correct))
+
+ggplot(item_prob_scol, 
+       aes( x = reorder(id_question, correct), 
+            y = correct, color = scol, 
+            shape = scol, group = scol, 
+            linetype = scol)) + geom_point(size = 2) +
+  geom_line(aes(y=correct)) + theme_light() + theme_light() 
+```
+
+
+## Item probability ed età (generazione)
+
+```{r}
+
+item_prob_gen = data %>% 
+  group_by(id_question, new.gen) %>% 
+  summarise(correct = mean(correct))
+item_prob_gen$new.gen = factor(item_prob_gen$new.gen, 
+                               levels = c("old.gen", "gen.y", "gen.z"))
+ggplot(item_prob_gen, 
+       aes( x = reorder(id_question, correct), 
+            y = correct, color = new.gen, 
+            shape = new.gen, group = new.gen, 
+            linetype = new.gen)) + geom_point(size = 2) +
+  geom_line(aes(y=correct)) + theme_light() + theme_light() 
+```
+
+
+
+## Item probability, età (generazione) e tempo di risposta
+
+```{r}
+
+item_time_gen = aggregate(time.diff.item ~ id_question + new.gen, data = data, mean)
+item_char_gen = merge(item_prob_gen, 
+                       item_time_gen)
+
+ggplot(item_char_gen, 
+       aes(x=reorder(id_question, correct), 
+                      y = time.diff.item, 
+                      color = new.gen, shape = new.gen, group = new.gen, linetype = new.gen)) + geom_point() +
+  geom_line(aes(y=time.diff.item)) + theme_light()
+
+# Scommentare per il boxplot
+
+# ggplot(item_char_scol, aes(x=scol, 
+#                            y = time.diff.item, 
+#                            color = scol, shape = scol, group = scol)) + geom_boxplot()
+
+
+```
+
+
+## Item probability, scolarità e tempo di risposta
+
+```{r}
+
+item_time_scol = aggregate(time.diff.item ~ id_question + scol, data = data, mean)
+item_char_scol = merge(item_prob_scol, 
+                       item_time_scol)
+
+ggplot(item_char_scol, 
+       aes(x=reorder(id_question, correct), 
+                      y = time.diff.item, 
+                      color = scol, shape = scol, group = scol, linetype = scol)) + geom_point() +
+  geom_line(aes(y=time.diff.item)) + theme_light()
+
+# Scommentare per il boxplot
+
+# ggplot(item_char_scol, aes(x=scol, 
+#                            y = time.diff.item, 
+#                            color = scol, shape = scol, group = scol)) + geom_boxplot()
+
+
+```
+
+
+:::
+
+## Analisi sui quartili degli item 
+
+Per cercare di capire un po' meglio come funziona la relazione tra la difficoltà degli item e i loro tempi di risposta, divido gli item secondo la distribuzione quartilica della loro item probability:
+
+- $\leq Q1$ : Molto difficili
+-  $Q1 < x \leq Q2$: Difficili 
+-  $Q2 < x \leq Q3$: Facili
+- $> Q3$: Molto facili
+
+Che risulta in: 
+
+
+```{r}
+
+prop_item = aggregate(correct ~ id_question, 
+                      data, mean)
+
+
+cutoff = quantile(prop_item$correct)
+prop_item$item.diff = ifelse(item_prob$correct <= cutoff[2], 
+                             "molto.difficile", 
+                             ifelse(item_prob$correct > cutoff[2] &  item_prob$correct <= cutoff[3],
+                             "difficile", 
+                             ifelse(item_prob$correct > cutoff[3] &  item_prob$correct <= cutoff[4], 
+                                    "facili", "molto.facile")))
+
+prop_item %>% 
+  count(item.diff) %>% 
+  kable(align="c")
+
+
+colnames(prop_item)[2] = "prop.tot"
+
+item_char_scol = merge(item_char_scol, 
+                       prop_item)
+
+item_char_scol$item.diff = factor(item_char_scol$item.diff, 
+                                  levels = c("molto.facile", 
+                                             "facili", 
+                                             "difficile", "molto.difficile"))
+
+item_char_gen = merge(item_char_gen, prop_item)
+
+data = merge(data, prop_item)
+```
+
+A livello generale si ha questa situazione ripsetto ai tempi di risposta: 
+
+
+::: {.columns}
+
+::: {.column}
+```{r}
+ggplot(item_char_scol, 
+       aes(x = item.diff, 
+           y = time.diff.item, color = scol)) + 
+  geom_boxplot() + theme_light() + ggtitle("Tempo, difficoltà e scolarità")
+
+
+
+```
+:::
+
+
+::: {.column}
+```{r}
+
+item_char_gen$item.diff = factor(item_char_gen$item.diff, 
+                                 levels = levels(item_char_scol$item.diff))
+
+ggplot(item_char_gen, 
+       aes(x = item.diff, 
+           y = time.diff.item, color = new.gen)) + 
+  geom_boxplot() + theme_light() + ggtitle("Tempo, difficoltà e età")
+```
+
+:::
+:::
+
+
+
+
+Anche interpretabile così: 
+
+<!-- # ```{r} -->
+<!-- # time_details = item_char_scol %>%   -->
+<!-- #   group_by(scol, item.diff) %>%  -->
+<!-- #   summarise(mean_time = mean(time.diff.item), sd = sd(time.diff.item)) -->
+<!-- #  -->
+<!-- # ggplot(time_details,  -->
+<!-- #        aes(x = item.diff, y = mean_time,  -->
+<!-- #            color = scol, group = scol,  -->
+<!-- #            linetype = scol)) + geom_point(size = 2) + -->
+<!-- #   geom_line(aes(y=mean_time), size = 1) +  -->
+<!-- #   geom_errorbar(aes(x = item.diff,  -->
+<!-- #                     ymin = mean_time - sd,  -->
+<!-- #                     ymax = mean_time + sd),  -->
+<!-- #                 width = .2, size = 1) + theme_light() -->
+<!-- # ``` -->
+<!-- #  -->
+
+
+```{r}
+time_details_gen = item_char_gen %>%  
+  group_by(new.gen, item.diff) %>% 
+  summarise(mean_time = mean(time.diff.item), sd = sd(time.diff.item))
+
+ggplot(time_details_gen, 
+       aes(x = item.diff, y = mean_time, 
+           color = new.gen, group = new.gen, 
+           linetype = new.gen)) + geom_point(size = 2) +
+  geom_line(aes(y=mean_time), size = 1) + 
+  geom_errorbar(aes(x = item.diff, 
+                    ymin = mean_time - sd, 
+                    ymax = mean_time + sd), 
+                width = .2, size = 1) + theme_light()
+```
+
+## Differenza tempi di risposta 
+
+Calcolo la differenza nei tempi di risposta tra i livelli estremi delle generazioni, ossia (per il momento tra old.gen e gen.z). La differenza è calcolata tra old gen e gen z, per cu valori positivi indicano che old generation è più lenta della gen.z
+
+::: {.panel-tabset}
+
+## Differenza RT e item difficulty 
+
+
+```{r}
+prova = item_char_gen[!item_char_gen$new.gen %in% "gen.y", ]
+prova$difference = 0 
+
+for (i in 2:nrow(prova)) {
+  prova[i-1, "difference"] = prova[i, "time.diff.item"] - prova[i-1, "time.diff.item"]
+}
+prova.1 = prova[prova$new.gen %in% "gen.z", ]
+
+prova.details = prova.1 %>% 
+  group_by(item.diff) %>% 
+  summarise(mean_difference = mean(difference), sd = sd(difference))
+
+prova.details$item.diff = factor(prova.details$item.diff, 
+                                 levels = c("molto.facile", 
+                                            "facili",
+                                            "difficile", 
+                                            "molto.difficile"))
+
+ggplot(prova.details, 
+       aes(x = item.diff, y = mean_difference)) + 
+  geom_point(size = 2) + geom_errorbar(aes(x = item.diff,
+                                   ymin=mean_difference-sd, 
+                                   ymax = mean_difference + sd), 
+                               width= .2) + theme_light() + 
+  geom_hline(aes(yintercept = 0), linetype = 2) + coord_flip()
+```
+
+
+## Differenza RT, item difficulty e genere
+
+```{r}
+gender_difference = data %>% 
+  group_by(new.gen, item.diff, gender) %>% 
+  summarise(mean_time = mean(time.diff.item), 
+            sd = sd(time.diff.item))
+# tiro fuori i millenial
+gender_difference$new.gen = factor(gender_difference$new.gen, 
+                                   levels = c("gen.z", "old.gen"))
+
+# gender_difference = gender_difference[!gender_difference$new.gen %in% "gen.y", ]
+
+
+gender_difference = gender_difference[order(gender_difference$new.gen), ]
+
+for (i in 9:nrow(gender_difference)) {
+  gender_difference[i, "difference"] = gender_difference[i, "mean_time"] - 
+    gender_difference[i-8, "mean_time"]
+}
+
+# ora seleziono solo la old gen
+
+gender_difference = gender_difference[gender_difference$new.gen %in% "old.gen", ]
+
+
+
+gender_difference$item.diff = factor(gender_difference$item.diff, 
+                                 levels = c("molto.facile", 
+                                            "facili",
+                                            "difficile", 
+                                            "molto.difficile"))
+ggplot(gender_difference, 
+       aes(x = item.diff, 
+           y = difference, 
+           color = gender, group = gender, linetype = gender)) + geom_point(size = 2) + theme_light() + geom_line(aes(y = difference)) + coord_flip()
+```
+
+
+:::
+
+
+## Tempi di risposta corrette vs. errate 
+
+```{r}
+data$correct = factor(data$correct, 
+                      levels = c("0", "1"))
+
+data$item.diff = factor(data$item.diff, 
+                        levels = c("molto.facile", 
+                                   "facili", 
+                                   "difficile", 
+                                   "molto.difficile"))
+# ggplot(data, 
+#        aes(x = item.diff, y = time.diff.item, 
+#            color =correct)) + geom_boxplot() + 
+#   facet_wrap(~scol) + theme_light()
+
+item_ce_time = data %>% 
+  group_by(new.gen, correct, item.diff) %>% 
+  summarise(mean = mean(time.diff.item), 
+            sd = sd(time.diff.item))
+item_ce_time$correct = factor(item_ce_time$correct, 
+                      levels = c("0", "1"))
+ggplot(item_ce_time, 
+       aes(x = item.diff, y = mean, 
+           color = correct, group = correct)) + 
+  geom_point(size = 2) +
+  geom_line(aes(y=mean)) + facet_wrap(~new.gen) + theme_light() #+ geom_errorbar(aes(x=item.diff, 
+  #                                                                                ymin = mean-sd, ymax=mean+sd))
+
+
+```
+
+# Distrattori 
+
+```{r}
+data = merge(data, guide)
+
+
+distr_prob = data.frame(table(data$id_question, 
+                 data$macro_distractors)/length(unique(data$id)))
+
+colnames(distr_prob) = c("id_question", "response", "prop")
+distr_prob$response = factor(distr_prob$response, 
+                             levels = c( "0","D", "WP", "R", "IC", "correct"))
+item_prob = item_prob[order(item_prob$correct), ]
+item_prob$new_id = 1:nrow(item_prob)
+
+distr_prob = merge(distr_prob, item_prob)
+
+ggplot(distr_prob, 
+       aes(x = as.factor(new_id), y = prop, fill = response)) + 
+  geom_bar(stat = "identity") + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + coord_flip()
+
+```
+
+## Considerando l'età
+
+```{r}
+item_prob_gen = data %>%  
+  group_by(id_question, macro_distractors, new.gen) %>%
+  summarise(n = n()) %>% 
+  mutate(prop = n/nrow(wide.temp))
+item_prob_gen = merge(item_prob_gen, item_prob)
+
+item_prob_gen$macro_distractors = factor(item_prob_gen$macro_distractors, 
+                                      
+                             levels = c( "0","D", "WP", "R", "IC", "correct"))
+```
+
+::: {.panel-tabset}
+
+
+## Old generation
+```{r}
+ggplot(item_prob_gen[item_prob_gen$new.gen %in% "old.gen", ], 
+       aes(x = reorder(id_question, correct), y = prop, 
+           fill = macro_distractors )) + 
+  geom_bar(stat = "identity") + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
+  facet_wrap(~new.gen) + coord_flip()
+```
+
+<!-- ## Gen y  -->
+
+<!-- ```{r} -->
+<!-- ggplot(item_prob_gen[item_prob_gen$new.gen %in% "gen.y", ],  -->
+<!--        aes(x = reorder(id_question, correct), y = prop,  -->
+<!--            fill = macro_distractors )) +  -->
+<!--   geom_bar(stat = "identity") + scale_fill_brewer(palette = "Dark2") +  -->
+<!--   scale_x_discrete(labels = item_prob$id_question) + theme_light() +  -->
+<!--   facet_wrap(~new.gen) + coord_flip() -->
+<!-- ``` -->
+
+
+## Gen z
+```{r}
+ggplot(item_prob_gen[item_prob_gen$new.gen %in% "gen.z", ], 
+       aes(x = reorder(id_question, correct), y = prop, 
+           fill = macro_distractors )) + 
+  geom_bar(stat = "identity") + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
+  facet_wrap(~new.gen) + coord_flip()
+```
+
+:::
+
+
+## Differenza tempi di risposta 
+
+Calcolo la differenza nei tempi di risposta tra i livelli estremi della scolairtà (i.e., superiore-primaria).
+
+::: {.panel-tabset}
+
+## Differenza RT e item difficulty 
+
+
+```{r}
+prova = item_char_scol[!item_char_scol$scol %in% "secondaria", ]
+prova$difference = 0 
+
+for (i in 2:nrow(prova)) {
+  prova[i-1, "difference"] = prova[i, "time.diff.item"] - prova[i-1, "time.diff.item"]
+}
+prova.1 = prova[prova$scol %in% "primaria", ]
+
+prova.details = prova.1 %>% 
+  group_by(item.diff) %>% 
+  summarise(mean_difference = mean(difference), sd = sd(difference))
+
+prova.details$item.diff = factor(prova.details$item.diff, 
+                                 levels = c("molto.difficile", 
+                                            "difficile", 
+                                            "facili", 
+                                            "molto.facile"))
+
+ggplot(prova.details, 
+       aes(x = item.diff, y = mean_difference)) + 
+  geom_point() + geom_errorbar(aes(x = item.diff,
+                                   ymin=mean_difference-sd, 
+                                   ymax = mean_difference + sd), 
+                               width= .2) + theme_light()
+```
+
+
+## Differenza RT, item difficulty e genere
+
+```{r}
+gender_difference = data %>% 
+  group_by(scol, item.diff, gender) %>% 
+  summarise(mean_time = mean(time.diff.item), 
+            sd = sd(time.diff.item))
+# tiro fuori la secondaria
+
+gender_difference = gender_difference[!gender_difference$scol %in% "secondaria", ]
+
+for (i in 9:nrow(gender_difference)) {
+  gender_difference[i, "difference"] = gender_difference[i, "mean_time"] - 
+    gender_difference[i-8, "mean_time"]
+}
+
+# ora seleziono solo le righe con superiore 
+
+gender_difference = gender_difference[gender_difference$scol %in% "superiore", ]
+
+ggplot(gender_difference, 
+       aes(x = item.diff, 
+           y = difference, 
+           color = gender, group = gender, linetype = gender)) + geom_point() + theme_light() + geom_line(aes(y = difference))
+```
+
+
+:::
+
+
+## Tempi di risposta corrette vs. errate (Scolairtà)
+
+```{r}
+data$correct = factor(data$correct, 
+                      levels = c("0", "1"))
+
+data$item.diff = factor(data$item.diff, 
+                        levels = c("molto.facile", 
+                                   "facili", 
+                                   "difficile", 
+                                   "molto.difficile"))
+# ggplot(data, 
+#        aes(x = item.diff, y = time.diff.item, 
+#            color =correct)) + geom_boxplot() + 
+#   facet_wrap(~scol) + theme_light()
+
+item_ce_time = data %>% 
+  group_by(scol, correct, item.diff) %>% 
+  summarise(mean = mean(time.diff.item), 
+            sd = sd(time.diff.item))
+item_ce_time$correct = factor(item_ce_time$correct, 
+                      levels = c("0", "1"))
+ggplot(item_ce_time, 
+       aes(x = item.diff, y = mean, 
+           color = correct, group = correct)) + 
+  geom_point(size = 2) +
+  geom_line(aes(y=mean)) + facet_wrap(~scol) + theme_light() #+ geom_errorbar(aes(x=item.diff, 
+  #                                                                                ymin = mean-sd, ymax=mean+sd))
+
+
+```
+
+
+## Tempi di risposta corrette vs. errate (Età - generazione)
+
+```{r}
+
+item_ce_time_gen = data %>% 
+  group_by(new.gen, correct, item.diff) %>% 
+  summarise(mean = mean(time.diff.item), 
+            sd = sd(time.diff.item))
+item_ce_time_gen$correct = factor(item_ce_time_gen$correct, 
+                      levels = c("0", "1"))
+ggplot(item_ce_time_gen, 
+       aes(x = item.diff, y = mean, 
+           color = correct, group = correct)) + 
+  geom_point(size = 2) +
+  geom_line(aes(y=mean)) + facet_wrap(~new.gen) + theme_light() + geom_errorbar(aes(x=item.diff, 
+                                                                           ymin = mean-sd, ymax=mean+sd), width = .2)
+
+
+```
+
+# Distrattori 
+
+```{r}
+data = merge(data, guide)
+
+
+distr_prob = data.frame(table(data$id_question, 
+                 data$macro_distractors)/length(unique(data$id)))
+
+colnames(distr_prob) = c("id_question", "response", "prop")
+distr_prob$response = factor(distr_prob$response, 
+                             levels = c( "0","D", "WP", "R", "IC", "correct"))
+item_prob = item_prob[order(item_prob$correct), ]
+item_prob$new_id = 1:nrow(item_prob)
+
+distr_prob = merge(distr_prob, item_prob)
+
+ggplot(distr_prob, 
+       aes(x = as.factor(new_id), y = prop, fill = response)) + 
+  geom_bar(stat = "identity") + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light()
+
+```
+
+## Considerando la scolarità
+
+```{r}
+temp = data[, c("id", "scol")]
+
+scol = temp %>% distinct()
+
+
+freq_scol = data.frame(table(scol$scol))
+
+colnames(freq_scol) = c("scol", "tot.scol")
+
+
+distr_scol_prob = data.frame(table(data$id_question, 
+                              data$macro_distractors, 
+                              data$scol))
+
+colnames(distr_scol_prob) = c("id_question", "response", "scol", 
+                              "tot.freq")
+
+distr_scol_prob$response = factor(distr_scol_prob$response, 
+                             levels = c( "0","D", "WP", "R", "IC", "correct"))
+
+distr_scol_prob = merge(distr_scol_prob, freq_scol)
+distr_scol_prob$prop = distr_scol_prob$tot.freq/distr_scol_prob$tot.scol
+
+distr_scol_prob = merge(distr_scol_prob, item_prob)
+```
+
+::: {.panel-tabset}
+
+
+## Primaria
+```{r}
+ggplot(distr_scol_prob[distr_scol_prob$scol %in% "primaria", ], 
+       aes(x = as.factor(new_id), y = prop, fill = response)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
+  facet_wrap(~scol)
+```
+
+## Secondaria
+```{r}
+ggplot(distr_scol_prob[distr_scol_prob$scol %in% "secondaria", ], 
+       aes(x = as.factor(new_id), y = prop, fill = response)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
+  facet_wrap(~scol)
+```
+
+
+## Superiore
+```{r}
+ggplot(distr_scol_prob[distr_scol_prob$scol %in% "superiore", ], 
+       aes(x = as.factor(new_id), y = prop, fill = response)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
+  facet_wrap(~scol)
+```
+
+:::
+
+
+
+## Considerando la scolarità
+
+```{r}
+temp = data[, c("id", "scol")]
+
+scol = temp %>% distinct()
+
+
+freq_scol = data.frame(table(scol$scol))
+
+colnames(freq_scol) = c("scol", "tot.scol")
+
+
+distr_scol_prob = data.frame(table(data$id_question, 
+                              data$macro_distractors, 
+                              data$scol))
+
+colnames(distr_scol_prob) = c("id_question", "response", "scol", 
+                              "tot.freq")
+
+distr_scol_prob$response = factor(distr_scol_prob$response, 
+                             levels = c( "0","D", "WP", "R", "IC", "correct"))
+
+distr_scol_prob = merge(distr_scol_prob, freq_scol)
+distr_scol_prob$prop = distr_scol_prob$tot.freq/distr_scol_prob$tot.scol
+
+distr_scol_prob = merge(distr_scol_prob, item_prob)
+```
+
+::: {.panel-tabset}
+
+
+## Primaria
+```{r}
+ggplot(distr_scol_prob[distr_scol_prob$scol %in% "primaria", ], 
+       aes(x = as.factor(new_id), y = prop, fill = response)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
+  facet_wrap(~scol)
+```
+
+## Secondaria
+```{r}
+ggplot(distr_scol_prob[distr_scol_prob$scol %in% "secondaria", ], 
+       aes(x = as.factor(new_id), y = prop, fill = response)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
+  facet_wrap(~scol)
+```
+
+
+## Superiore
+```{r}
+ggplot(distr_scol_prob[distr_scol_prob$scol %in% "superiore", ], 
+       aes(x = as.factor(new_id), y = prop, fill = response)) + 
+  geom_bar(stat = "identity", position = position_dodge()) + scale_fill_brewer(palette = "Dark2") + 
+  scale_x_discrete(labels = item_prob$id_question) + theme_light() + 
+  facet_wrap(~scol)
+```
+
+:::

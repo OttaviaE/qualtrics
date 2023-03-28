@@ -238,7 +238,7 @@ id_couples_temp$id_question = gsub("items.", "", id_couples_temp$id_question)
 In questo file sono riportate alcune analisi effettuate sulle matrici $2\times 2$ dei bambini, in particolare considerando le coppie di matrici colorate: 
 
 ```{r}
-dsc_couple %>% 
+dsc_couple[order(dsc_couple$color), ] %>% 
 kable(align = "c")
 ```
 
@@ -297,7 +297,7 @@ ggplot(couple_data,
 
 ## Tempi di risposta ed accuratezze 
 
-Sull'asse delle y sono riporate le matrici ordinate dalla più difficile (bottom) alla più facile (top), sull'asse delle x sono riportati i tempi ad ogni matrice. I bambini prescoalri (yy) sono riportati in rosa, quelli scoalri (Y) sono riporati in azzurro mentre i diversi simboli identificano le coppie di matrici. Le etichette delle matrici riportate in grassetto indicano che la matrice in questione è colorata. 
+Sull'asse delle y sono riporate le matrici ordinate dalla più difficile (bottom) alla più facile (top), sull'asse delle x sono riportati i tempi ad ogni matrice. I bambini prescolari (yy) sono riportati in rosa, quelli scolari (Y) sono riportati in azzurro mentre i diversi simboli identificano le coppie di matrici. Le etichette delle matrici riportate in grassetto indicano che la matrice in questione è colorata. 
 
 ```{r}
 item_prob_scol = couple_data %>%  

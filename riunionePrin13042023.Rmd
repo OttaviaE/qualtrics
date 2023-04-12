@@ -1,0 +1,649 @@
+---
+title: "MatriKS -- Bambini"
+subtitle: "Un dettaglio sugli item"
+author: "Ottavia"
+date: "Riunione PRIN 13/04/2023"
+output: 
+  beamer_presentation: 
+    theme: metropolis
+    colortheme: crane
+header-includes: 
+  - \useoutertheme{infolines}
+  - \useinnertheme{rectangles}
+  - \usepackage[italian]{babel}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center", out.width = "80%")
+hook_output <- knitr::knit_hooks$get("output")
+
+# set a new output hook to truncate text output
+knitr::knit_hooks$set(output = function(x, options) {
+  if (!is.null(n <- options$out.lines)) {
+    x <- xfun::split_lines(x)
+    if (length(x) > n) {
+      # truncate the output
+      x <- c(head(x, n), "....\n")
+    }
+    x <- paste(x, collapse = "\n")
+  }
+  hook_output(x, options)
+})
+
+library(psych)
+library(corrplot)
+library(ggplot2)
+library(car)
+library(dplyr)
+library(xtable)
+library(mokken)
+library(lavaan)
+library(TAM)
+library(lavaanPlot)
+library(difR)
+library(knitr)
+explore_dist = function(data, item) {
+  i_select = data[data$id_question %in% item, ]
+  a = data.frame(table(i_select$distractors))
+  a = a[order(a$Freq, decreasing = T), ]
+  b = c(a[which(a$Var1 == "correct"), "Freq"], 
+        sum(a[-which(a$Var1 == "correct"), "Freq"])
+  )
+  names(b) = c("n.correct", "n.error")
+  obj = list(a, b)
+  return(obj)
+}
+
+outin.item = function(model) {
+  a = msq.itemfit(model)$itemfit[, c(1,3,6)]
+  
+  for (i in 1: nrow(a)) {
+    if (a[i, "Outfit"] < .5) {
+      a[i, "out_summary"] = "overfit"
+    } else if (a[i, "Outfit"] > 2) {
+      a[i, "out_summary"] = "underfit"
+    } else {
+      a[i, "out_summary"] = "ok"
+    }
+    
+    if (a[i, "Infit"] < .5) {
+      a[i, "in_summary"] = "overfit"
+    } else if (a[i, "Infit"] > 2) {
+      a[i, "in_summary"] = "underfit"
+    } else {
+      a[i, "in_summary"] = "ok"
+    }
+  }
+  return(a)
+}
+
+outin.person = function(model, data, id) {
+  temp = data
+  # temp = temp[, order(colnames(temp))]
+  theta = model$person
+  b =  model$item[, c("item", "xsi.item")]
+  # b = b[order(b$item),]
+  
+  exp_score = data.frame(matrix(nrow = nrow(theta), 
+                                ncol = nrow(b)), 
+                         row.names = id)
+  colnames(exp_score) = b$item
+  
+  for (i in 1:nrow(exp_score)) {
+    for (j in 1:ncol(exp_score)) {
+      exp_score[i, j] = IRT(theta[i, "EAP"], b = b[j, "xsi.item"])
+      
+    }
+  }
+  
+  res = (temp - exp_score)
+  var.resp = ((exp_score * (1-exp_score)))
+  
+  z = res/sqrt(var.resp)
+  rownames(z) = rownames(exp_score)
+  z2 = z^2
+  
+  
+  outin.p.data = data.frame(outfit = rowSums(z2)/ncol(z2), 
+                            infit = rowSums(z2*var.resp)/rowSums(var.resp))
+  
+  
+  
+  for (i in 1: nrow(outin.p.data)) {
+    if (outin.p.data[i, "outfit"] < .5) {
+      outin.p.data[i, "out_summary"] = "overfit"
+    } else if (outin.p.data[i, "outfit"] > 2) {
+      outin.p.data[i, "out_summary"] = "underfit"
+    } else {
+      outin.p.data[i, "out_summary"] = "ok"
+    }
+    
+    if (outin.p.data[i, "infit"] < .5) {
+      outin.p.data[i, "in_summary"] = "overfit"
+    } else if (outin.p.data[i, "infit"] > 2) {
+      outin.p.data[i, "in_summary"] = "underfit"
+    } else {
+      outin.p.data[i, "in_summary"] = "ok"
+    }
+  }
+  
+  for (i in 1:nrow(outin.p.data)) {
+    if (outin.p.data[i, "out_summary"] == outin.p.data[i, "in_summary"]) {
+      outin.p.data[i, "agree"] = "yes"
+    } else {
+      outin.p.data[i, "agree"] = "no"
+    }
+  }
+  
+  results = list(data = outin.p.data, 
+                 summary = outin.p.data[outin.p.data$agree %in% "no", ])
+  
+  
+  return(results)
+  
+}
+
+IRT <- function(theta,  b = 0, a = 1, c = 0,e = 1) {
+  y <- c + (e - c) * exp(a * (theta - b)) / (1 + exp(a * (theta - b)))
+  return(y)
+}
+
+
+irt.icc = function(model) {
+  item_par = model$item
+  est_theta = seq(-5,5, length.out=1000)
+  item_prob = list()
+  if (any(grep("guess", colnames(item_par))) == F) {
+    for (i in 1:nrow(item_par)) {
+      item_prob[[i]] = data.frame(theta = est_theta)
+      item_prob[[i]]$it_p = IRT(item_prob[[i]]$theta, 
+                                b = item_par[i, "xsi.item"], 
+                                a = item_par[i, "B.Cat1.Dim1"])
+      item_prob[[i]]$item = item_par[i, "item"]
+    }
+  } else {
+    for (i in 1:nrow(item_par)) {
+      item_prob[[i]] = data.frame(theta = est_theta)
+      item_prob[[i]]$it_p = IRT(item_prob[[i]]$theta, 
+                                b = item_par[i, "AXsi_.Cat1"], 
+                                a = item_par[i, "B.Cat1.Dim1"], 
+                                c = item_par[i, "guess"])
+      item_prob[[i]]$item = item_par[i, "item"]
+    }
+  }
+  p = do.call("rbind", item_prob)
+  gp = ggplot(p, 
+              aes(x = theta, y = it_p, group = item, col =
+                    item)) + geom_line(lwd = 1)
+  object = list(prob.data = p, 
+                icc.graph = gp)
+  return(object)
+}
+# restituisce la dipendenza locale ----
+dip.local = function(model, cut = .20) {
+  temp_local = model$Q3.matr
+  index = which( upper.tri(temp_local,diag=F) , arr.ind = TRUE )
+  local = data.frame( col = dimnames(temp_local)[[2]][index[,2]] ,
+                      row = dimnames(temp_local)[[1]][index[,1]] ,
+                      val = temp_local[ index ] )
+  summary.local = local[local$val > cut, ]
+  return(summary.local)
+}
+# ridà i parametri degli item ordinati per proporzione di risposte corrette ----
+item.par = function(model) {
+  est = model$item 
+  est = est[order(est$M), ]
+  return(est)
+}
+# item fit basata sul chi quadro ----
+item.fit = function(model) {
+  temp.fit = tam.modelfit(model)
+  chi = temp.fit$chisquare.itemfit
+  chi = chi[chi$p.holm < .05, ]
+  return(chi)
+}
+data = read.csv("D:/PRIN2020/qualtrics/psycAssist/mat49_2023_04_11.csv", 
+                header = T, sep = ",")
+table(data$external_code)
+data = data[!data$external_code %in% "UTENTE01", ]
+data = data[!data$date_end %in% "NULL", ]
+
+table(data$external_code)
+
+guide = read.csv("D:/PRIN2020/qualtrics/skill_young.csv",
+                 header = T, sep = ",")
+guide$id_question = 1:nrow(guide)
+data$id_question = data$id_question + 1
+problems = data[data$id_question %in% c(3, 7), ]
+data = data[!data$id_question %in% c(3), ]
+data = data[!data$anni_scolarita %in% "NULL", ]
+
+
+
+
+data = merge(data, guide, by = "id_question")
+
+# faccio subito la ricodifica dei distrattori -----
+
+data$response_vector = gsub('[\"]', "", data$response_vector)
+data$distractors = gsub(".*_", "", data$response_vector)
+data$distractors = gsub(".svg]", "", data$distractors)
+# macro_distractors contiene solo le macrocategorie di distrattori 
+data$macro_distractors = numeric(nrow(data))
+
+for (i in 1:nrow(data)) {
+  if(data[i, "distractors"] == "d.union" | data[i, "distractors"] == "diff1" | data[i, "distractors"] == "diff2" | data[i, "distractors"] == "diff") {
+    data[i, "macro_distractors"] = "D"
+  } else if (grepl("ic", data[i, "distractors"])  ==T) {
+    data[i, "macro_distractors"] = "IC"
+  } else if (grepl("wp", data[i, "distractors"])  ==T) {
+    data[i, "macro_distractors"] = "WP"
+  } else if (grepl("correct", data[i, "distractors"])  ==T){
+    data[i, "macro_distractors"] = "correct"
+  } else if (data[i, "distractors"] == "r.left" | data[i, "distractors"] == "r.top" | data[i, "distractors"] == "r.diag"){
+    data[i, "macro_distractors"] = "R"
+  }
+}
+
+
+
+# prendo solo i dati della bambina 355 con session id 1486, escludendo la 
+# session id 1936
+
+# creo il nuovo id per le bambine 355 
+t355 = data[data$id %in% 355, ]
+data = data[!data$id %in% 355, ]
+t355$id = paste(t355$id, t355$session_id, sep = ".")
+data = rbind(data, t355)
+table(data$id)
+
+length(unique(data$id))
+
+data$time.diff.item = difftime(data$end_time, 
+                               data$start_time, 
+                               units = "secs")
+data$time.diff.item = as.numeric(data$time.diff.item)
+sum.time =aggregate(time.diff.item ~ id, 
+                    data, sum)
+colnames(sum.time)[2] = "sum.time"
+sum.time$sum.time = as.numeric(sum.time$sum.time)
+
+# # unisco il dettaglio sui tempi al dataset ----
+data = merge(data, sum.time, by="id")
+
+# CREA DATAFRAME DEMOGRAFICHE -------
+small_sbj = data[, c("id", "anni_scolarita", 
+                     "gender", "diagnostic")]
+small_sbj = small_sbj %>% distinct()
+# recode disagi persone ------ 
+small_sbj$diagnostic = tolower(small_sbj$diagnostic)
+small_sbj$new.diag = ifelse(small_sbj$diagnostic == "", 
+                            "ok", 
+                            ifelse(grepl("disort", small_sbj$diagnostic), 
+                                   "DSA", 
+                                   ifelse(grepl("disless", small_sbj$diagnostic), 
+                                          "DSA", "altro")))
+
+# CREA DATAFRAME PICCOLI PE ROGNI TIPOLOGIA -----
+# ALL MATRICES -----
+temp.all = data[, c("id", "id_question", "task_success")]
+temp.all$task_success = ifelse(temp.all$task_success == "True", 
+                           1, 0)
+
+#temp = temp[temp$id %in% unique(temp$id)[163:length(unique(temp$id))], ]
+wide.all = reshape(temp.all, 
+                    idvar = "id", 
+                    timevar = "id_question", 
+                    direction = "wide")
+wide.all$total_score = rowSums(wide.all[,-1], na.rm = T)
+
+
+
+wide.all = merge(wide.all, small_sbj)
+
+time.sbj = data[, c("id", "sum.time")]
+time.sbj = time.sbj %>%  distinct()
+
+quantile(sum.time$sum.time)
+quantile(wide.all$total_score)
+
+
+wide.all = merge(wide.all, sum.time, all = T)
+
+
+wide.all$new.scol = ifelse(wide.all$anni_scolarita == 0, 
+                            "yy", "y")
+
+data$new.scol = ifelse(data$anni_scolarita == 0, 
+                       "yy", "y")
+#table(wide.all$anni_scolarita)
+
+#data = merge(data, small_sbj)
+
+#length(unique(data$id))
+
+item.all = wide.all[, c(grep("id",colnames(wide.all)),
+                     grep("gender", colnames(wide.all)), 
+                     grep("new.scol", colnames(wide.all)), 
+                     grep("new.diag", colnames(wide.all)),
+                     grep("task_success", colnames(wide.all)))]
+colnames(item.all) = gsub("task_success", "item", colnames(item.all))
+# MONOTONOCITY CHECK all ----- 
+
+
+temp.item.all = na.omit(item.all[, -c(1:4)])
+mono.all = as.data.frame(summary(check.monotonicity(temp.item.all[, -c(1:4)])))
+#mono.all[mono.all$ItemH <= .30, ]
+
+item.all = item.all[, -c(grep("item.18", colnames(item.all)), 
+                 grep("item.39", colnames(item.all)), 
+                 grep("item.5", colnames(item.all)))]
+item.all = na.omit(item.all)
+# wide.all = na.omit(wide.all)
+wide.all = wide.all[wide.all$id %in% item.all$id, ]
+
+```
+
+## Today's menu
+
+\tableofcontents
+
+
+
+# Info  
+
+##
+
+- Per il momento ho l'item `young003` e `young007` (distrattore cambiato in corsa)
+
+- I dati scaricati il 11/04/2023 contengono le osservazioni su `r length(unique(data$id))` soggetti
+
+
+- il punteggio massimo osservabile adesso è di 39. 
+
+## Cosa ho fatto I
+
+- Tolto le osservazioni con NA (`r  length(unique(data$id)) - nrow(temp.item.all)` osservazioni)
+
+- Controllato la presenza di eventuali outlier 
+
+  - Sul punteggio osservato, considerando sia lo score totale sia i tempi di risposta 
+  - Considerando le statistiche di infit e di outfit
+
+- Controllato l'influenza delle persone con diagnosi certificata sulla stima del modello
+
+## Cosa ho fatto II
+
+- Controllato la monotonicità degli item ed eliminato gli item non monotoni
+
+- Fittato Rasch 
+
+- Controllato gli item considerando: 
+  - Infit/Outfit
+  - Dipendenza locale 
+  
+- Tolto gli item problematici fino ad ottenere un item pool soddisfacente 
+
+# Outlier check/diagnosi
+
+## Generale 
+
+- Tutti gli item insieme 
+- Le matrici $2\times 2$
+- Le matrici $3\times 3$
+- Le matrici colorate
+- Le matrici in bianco/nero
+  
+::: columns
+
+
+:::: column
+
+Dati osservati: 
+
+- score $<$ 1/3 del punteggio totale 
+
+- tempo totale di esecuzione $< Q1$ dei tempi
+
+
+::::
+
+:::: column 
+
+Statistiche di Infit/outfit 
+
+- Underfit $> 2$
+
+::::
+
+
+
+:::
+
+## Cosa ho trovato 
+
+- Togliendo le persone con diagnosi $\rightarrow$ la fit non migliora
+
+- Togliendo gli outlier identifcati a livello osservato $\rightarrow$ la fit non migliora
+
+- Togliendo gli outlier identifcati con underfit $\rightarrow$ la fit non migliora
+
+\begin{center}
+In conclusione
+\end{center}
+
+Non sono stati tolti soggetti. Sono state tolte solo le osservazioni con NA (`r  length(unique(data$id)) - nrow(temp.item.all)` osservazioni)
+
+
+# Step 1: Check monotonocità 
+
+## 
+
+Reminder: L'item 3 è stato tolto di sistema
+
+```{r}
+data.frame(item = rownames(mono.all[mono.all$ItemH <= .30, ]), 
+           H = mono.all[mono.all$ItemH <= .30, "ItemH"]) %>% kable(align = "c")
+```
+
+Sono stati tolti gli item 39, 18, 5
+
+
+
+# Step 2: Rasch con tutti gli item rimasti
+
+
+## Fit del modello 
+
+Il modello di Rasch è stato fittato considerando un totale di `r nrow(item.all)` considerando `r ncol(item.all)-4` item
+
+
+```{r}
+m.1pl.all = tam.mml(item.all[, -c(1:4)], pid = item.all$id, verbose = F)
+fit.m1pl.all = tam.modelfit(m.1pl.all, progress = F)
+fit.m1pl.all$statlist %>% kable(align = "c", 
+                                caption = "Fit modello di Rasch")
+
+
+```
+
+
+## Item parameters
+
+```{r}
+icc.all = irt.icc(m.1pl.all)
+
+icc.all$icc.graph + theme_light() + theme(legend.position = "none") + 
+  xlab(expression(theta)) + ylab(expression(paste("P(", x[vi], " = 1)"))) 
+
+```
+
+
+## Infit/outfit 
+
+```{r out.width="80%"}
+fit.item.all = outin.item(m.1pl.all)
+for (i in 1:nrow(fit.item.all)) {
+  if (fit.item.all[i, "out_summary"] == fit.item.all[i, "in_summary"]) {
+    fit.item.all[i, "agree"] = fit.item.all[i, "out_summary"]
+  } else {
+    fit.item.all[i, "agree"] = "no"
+  }
+}
+
+fit.item.all[!fit.item.all$agree %in% "ok", ] %>% kable(align = "c", 
+                                                        caption = "item")
+```
+
+L'item 21 va tolto. 
+
+Gli overfit non mi preoccupano 
+
+```{r}
+item.21 = item.all[,-grep("item.21", colnames(item.all))]
+
+m.1pl.21 = tam.mml(item.21[, -c(1:4)], pid = item.21$id, verbose = F)
+fit.m1pl.21 = tam.modelfit(m.1pl.21, progress = F)
+# fit.m1pl.21$statlist %>% kable(align = "c", 
+#                                 caption = "Fit modello di Rasch")
+# 
+# fit.m1pl.21$statlist; fit.m1pl.all$statlist 
+# outin.item(m.1pl.21)
+# dip.local(fit.m1pl.21)
+
+
+item.14 = item.21[,-grep("item.14", colnames(item.21))]
+
+m.1pl.14 = tam.mml(item.14[, -c(1:4)], pid = item.14$id, verbose = F)
+fit.m1pl.14 = tam.modelfit(m.1pl.14, progress = F)
+# fit.m1pl.14$statlist %>% kable(align = "c", 
+#                                 caption = "Fit modello di Rasch")
+# 
+ # fit.m1pl.14$statlist; fit.m1pl.21$statlist; fit.m1pl.all$statlist 
+ # outin.item(m.1pl.14)
+# dip.local(fit.m1pl.14)
+
+
+item.28 = item.14[,-grep("item.28", colnames(item.14))]
+
+m.1pl.28 = tam.mml(item.28[, -c(1:4)], pid = item.28$id, verbose = F)
+fit.m1pl.28 = tam.modelfit(m.1pl.28, progress = F)
+# fit.m1pl.28$statlist %>% kable(align = "c", 
+#                                 caption = "Fit modello di Rasch")
+# 
+ # fit.m1pl.28$statlist; fit.m1pl.14$statlist; fit.m1pl.21$statlist; fit.m1pl.all$statlist 
+# outin.item(m.1pl.28)
+# dip.local(fit.m1pl.28)
+
+item.6 = item.28[,-grep("item.6", colnames(item.28))]
+
+m.1pl.6 = tam.mml(item.6[, -c(1:4)], pid = item.6$id, verbose = F)
+fit.m1pl.6 = tam.modelfit(m.1pl.6, progress = F)
+# fit.m1pl.6$statlist %>% kable(align = "c", 
+#                                 caption = "Fit modello di Rasch")
+# 
+ # fit.m1pl.6$statlist; fit.m1pl.28$statlist; fit.m1pl.21$statlist; fit.m1pl.all$statlist 
+ # outin.item(m.1pl.6)
+ # dip.local(fit.m1pl.6)
+
+
+
+```
+
+## Cosa è successo 
+
+Tolto l'item 21, rifittato il modello e: 
+
+- Controllato di nuovo per infit/outfit con underfit $\rightarrow$ non sono emersi altri item 
+
+- Controllato per dipendenza locale:
+
+
+  1. Item 7 -- 14 $\rightarrow$ eliminato il 14
+  2. Item 28 -- 37 $\rightarrow$ eliminato il 28
+  3. Item 6 -- 29 $\rightarrow$ eliminato il 29
+  
+
+\vfill 
+
+NB: tutte le volte ho tolto l'item e rifatto tutti i check
+
+
+## In termini di fit 
+
+```{r}
+fit.summary = rbind(fit.m1pl.6$statlist, fit.m1pl.28$statlist, fit.m1pl.14$statlist, fit.m1pl.21$statlist, fit.m1pl.all$statlist)
+
+for (i in 1:(ncol(fit.summary) -1)) {
+  fit.summary[,i] = round(fit.summary[,i], 2)
+}
+fit.summary$pmaxX2 = round(fit.summary$pmaxX2, 3)
+
+row.names(fit.summary) = c("Item.6", "item.28", "item.14", "item.21", "tutti")
+
+fit.summary %>% kable(align = "c", caption="Fit dei modelli")
+
+```
+
+## In termini di item 
+
+```{r out.width="80%"}
+ icc.final = irt.icc(m.1pl.6)
+
+icc.final$icc.graph + theme_light() + theme(legend.position = "none") + 
+  xlab(expression(theta)) + ylab(expression(paste("P(", x[vi], " = 1)"))) 
+
+```
+
+## In termini di persone 
+
+```{r out.width="80%"}
+sbj = m.1pl.6$person
+colnames(sbj)[1] = "id"
+sbj = merge(sbj, small_sbj)
+sbj$anni_scolarita = factor(sbj$anni_scolarita)
+ggplot(sbj, 
+       aes(x = EAP, fill = anni_scolarita)) + geom_histogram(bins = 50) + theme_light() + ylab("Frequenza") + 
+  xlab(expression(theta)) + theme(legend.position = "bottom") + guides(size = guide_legend(nrow = 1))
+
+item.6$total.score = rowSums(item.6[, grep("item", colnames(item.6))])
+
+
+sbj = merge(sbj, item.6)
+# ggplot(sbj, 
+#        aes(x = total.score, fill = anni_scolarita)) + geom_histogram(bins = 50) + theme_light() +  ylab("Frequenza") + 
+#   xlab("Score osservato")
+
+```
+
+
+## E Raven? 
+
+```{r}
+raven = c(0.1, 0.13, 0.15, 0.18, 0.2, 0.22, 0.3, 0.44, 0.44, 0.5, 0.51, 
+          0.56, 0.58, 0.64, 0.65, 0.72, 0.74, 0.76, 0.76, 0.79, 0.81, 
+          0.81, 0.82, 0.82, 0.82, 0.83, 0.83, 0.84, 0.84, 0.85, 0.85, 0.87, 0.88, 0.89, 0.9, 0.9, 0.91, 0.91, 0.92, 0.92, 0.92, 0.93, 0.94, 0.95, 0.95, 0.96, 0.96, 0.96, 0.96, 0.97, 0.97, 0.98, 0.98, 0.98, 0.98, 0.99, 0.99, 0.99, 0.99, 0.99)
+
+comparison = rbind(quantile(raven), 
+quantile(item.par(m.1pl.6)$M))
+
+rownames(comparison) = c("Raven", "matriKS")
+
+comparison %>% kable(caption = "Quartili delle proporzioni di risposta corretta Raven vs. MatriKS")
+
+```
+
+# Summary finale 
+
+## 
+
+Item tolti: 
+
+- Item 3 di sistema 
+- Item 5, 18, 39 per la violazione della monotonicità 
+- Item 21 per underfit 
+- Item 14, 28, 6 per dipendenza locale 
+
+Item tolti in totale: 8

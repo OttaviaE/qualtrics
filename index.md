@@ -8,3 +8,5 @@
 [Analisi due per due bambini](Analisi-Due-per-Due.html)
 
 [Report adulti](psycAssist/Adulti/ReportAdulti.html)
+
+[Report DIF](Summary-DIF-bimbi-adulti-daje.html)
